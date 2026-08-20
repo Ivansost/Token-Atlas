@@ -36,10 +36,8 @@ Pre-build. Scaffolding only — no model code yet.
 
 | File | What it is |
 |---|---|
-| [`BUILD_PLAN.md`](BUILD_PLAN.md) | How it gets built: stack, milestones, how to run and test at each stage |
-| [`PROJECT_PLAN.md`](PROJECT_PLAN.md) | The spec: locked decisions, scope, data contract, risk register |
-| [`AI_Visualizer_Learning_Notes.md`](AI_Visualizer_Learning_Notes.md) | The curriculum and technical appendices — why each decision is what it is |
-| [`AI_Visualizer_Project_Plan_1.md`](AI_Visualizer_Project_Plan_1.md) | Historical record of how the plan was reached, disagreements included |
+| [`PROJECT_PLAN.md`](PROJECT_PLAN.md) | **The file we build against.** Milestones, locked decisions, tech stack, data contract, risk register |
+| [`PROJECT_IDEA.md`](PROJECT_IDEA.md) | Background: the idea, competitive research, decision history, learning curriculum, technical appendices |
 | `MODEL_NOTES.md` | Written at M0: measured speed, model quirks, prompts that work |
 
 ## Running it locally
