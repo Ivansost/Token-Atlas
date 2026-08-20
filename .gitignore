@@ -1,0 +1,21 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Model + data artifacts
+# NOTE: the PCA coordinate file from M3 is deliberately NOT ignored --
+# it must be identical on every machine and every run, so it gets committed.
+*.npy
+backend/data/chunk_embeddings.*
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
