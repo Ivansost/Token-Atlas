@@ -21,10 +21,10 @@ Pre-build. Scaffolding only — no model code yet.
 
 | Milestone | State |
 |---|---|
-| S0 · Scaffold | in progress |
-| M0 · Meet the model (hands-on + attention gate) | not started |
-| M1 · Proof of real numbers | not started |
-| M2 · Backend skeleton, schema freeze | not started |
+| S0 · Scaffold | ✅ done |
+| M0 · Meet the model (hands-on + attention gate) | ✅ done — gate passed |
+| M1 · Proof of real numbers | ✅ done |
+| M2 · Backend skeleton, schema freeze | ✅ done — schema frozen |
 | M3 · PCA artifact | not started |
 | M4 · Frontend on fake data, numbers panel, design pass | not started |
 | M5 · Phase 1 complete (deployable) | not started |
@@ -50,4 +50,21 @@ pip install -r backend/requirements.txt
 
 The first model load downloads ~1 GB into `~/.cache/huggingface/hub`, once. Everything runs on CPU.
 
-Commands are added here as each milestone lands.
+**Watch a full generation in the terminal** — every step's candidates, probabilities, and attention.
+This is the model-side debugger; check backend changes here before checking them in a browser.
+
+```bash
+./.venv/bin/python backend/scripts/run_local.py "What is the capital of France?"
+```
+
+**Run the server:**
+
+```bash
+cd backend && ../.venv/bin/python -m uvicorn app.main:app --reload --port 8000
+```
+
+`GET /health` reports whether the model is loaded. `WS /ws` takes
+`{"prompt": "...", "max_tokens": 60}` and streams `step` events followed by `done`.
+
+**Other tools:** `chat.py` (talk to it), `tokens.py` (see tokenization), `probe.py` (one step's
+numbers in detail).
