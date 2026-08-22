@@ -30,6 +30,8 @@ def main() -> None:
     p.add_argument("--max-tokens", type=int, default=40)
     p.add_argument("--top", type=int, default=6, help="candidates to print per step (of 40 sent)")
     p.add_argument("--json", action="store_true", help="dump raw events instead of a readable view")
+    p.add_argument("--full", action="store_true",
+                   help="show the ENTIRE attention row and all 40 candidates, not just the top few")
     args = p.parse_args()
 
     prompt = " ".join(args.prompt) if args.prompt else DEFAULT_PROMPT
@@ -78,7 +80,27 @@ def main() -> None:
                 f"best non-template: {show(ctx[best_typed[1]]['text'])}@{best_typed[1]}"
                 f"={best_typed[0]:.3f}" if best_typed[1] >= 0 else "none"
             )
-            print(f"           {tpl:.0%} of attention went to template tokens | {typed_note}\n")
+            print(f"           {tpl:.0%} of attention went to template tokens | {typed_note}")
+
+            if args.full:
+                # EVERYTHING the model looked at: one weight per context position, sorted.
+                print(f"\n           --- full attention row, all {len(row)} positions ---")
+                order = sorted(range(len(row)), key=lambda i: row[i], reverse=True)
+                for i in order:
+                    flag = "[tpl]" if ctx[i]["is_template"] else "     "
+                    bar = "█" * max(0, round(row[i] * 60))
+                    print(f"           {i:>3} {flag} {show(ctx[i]['text']):<16} "
+                          f"{row[i]:.4f} {bar}")
+
+                # EVERYTHING it considered that we kept: the 40 candidates, with running total.
+                print(f"\n           --- all {len(event['candidates'])} candidates sent ---")
+                running = 0.0
+                for rank, c in enumerate(event["candidates"], start=1):
+                    running += c["prob"]
+                    print(f"           {rank:>3}. {show(c['text']):<16} {c['prob']:.6f}  "
+                          f"cumulative {running:.4f}")
+                print(f"           the other ~151,896 tokens share {1 - running:.4f}")
+            print()
 
         elif event["type"] == "done":
             print(f"--- done: {event['steps']} tokens in {event['elapsed_s']}s "
