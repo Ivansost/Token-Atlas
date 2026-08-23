@@ -9,6 +9,7 @@ there is nothing to hand back. Eager costs 1.18x (measured at M0) and is the onl
 that keeps the thing this project exists to show.
 """
 
+import sys
 import time
 from typing import Optional
 
@@ -34,7 +35,7 @@ def get_model() -> tuple[PreTrainedTokenizer, PreTrainedModel]:
         _tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
         _model = AutoModelForCausalLM.from_pretrained(MODEL_ID, attn_implementation="eager")
         _model.eval()
-        print(f"[model] loaded {MODEL_ID} in {time.perf_counter() - t0:.1f}s")
+        print(f"[model] loaded {MODEL_ID} in {time.perf_counter() - t0:.1f}s", file=sys.stderr)
     return _tokenizer, _model
 
 

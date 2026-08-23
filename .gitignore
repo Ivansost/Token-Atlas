@@ -10,10 +10,12 @@ dist/
 .vite/
 
 # Model + data artifacts
-# NOTE: the PCA coordinate file from M3 is deliberately NOT ignored --
-# it must be identical on every machine and every run, so it gets committed.
 *.npy
 backend/data/chunk_embeddings.*
+
+# ...except the M3 projection, which is deliberately COMMITTED: UMAP could produce a different
+# (e.g. mirrored) layout on a rebuild, and a token must occupy the same place forever.
+!backend/data/vocab_umap_3d.npy
 
 # OS / editor
 .DS_Store

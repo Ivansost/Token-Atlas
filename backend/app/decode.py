@@ -22,6 +22,7 @@ import torch
 
 from . import events
 from .model import SYSTEM_PROMPT, get_model
+from .projection import lookup as pos3d
 
 MAX_NEW_TOKENS = 80          # editorial, not technical -- generation runs at ~38 tok/s
 TOP_K = 40                   # candidates displayed per step
@@ -102,7 +103,7 @@ def _candidates(tok, probs: torch.Tensor, k: int) -> list[dict[str, Any]]:
         text = tok.decode([tid])
         if not text:
             continue
-        out.append(events.token_ref(tid, text, prob))
+        out.append(events.token_ref(tid, text, prob, pos3d(tid)))
         if len(out) == k:
             break
     return out
@@ -118,6 +119,10 @@ def generate_steps(
     stop_ids = {tok.eos_token_id, tok.convert_tokens_to_ids("<|endoftext|>")}
 
     input_ids, context = build_prompt(user_text)
+    # Token ids for every context position, kept internally so attention targets can be given
+    # coordinates. Not part of the event: the schema carries text and position, not ids, for
+    # context entries.
+    context_ids: list[int] = input_ids[0].tolist()
     past = None
     produced: list[int] = []
     stop_reason = "max_tokens"
@@ -143,13 +148,15 @@ def generate_steps(
         row = out.attentions[-1].mean(dim=1)[0, -1].float()
         att_top = torch.topk(row, k=min(ATTENTION_TOP, row.numel()))
         attention = [
-            events.attention_ref(pos, context[pos]["text"], weight)
+            events.attention_ref(pos, context[pos]["text"], weight, pos3d(context_ids[pos]))
             for weight, pos in zip(att_top.values.tolist(), att_top.indices.tolist())
         ]
 
         # --- pick one -----------------------------------------------------------
         chosen_id = int(torch.argmax(probs).item())      # greedy: reproducible by design
-        chosen = events.token_ref(chosen_id, tok.decode([chosen_id]), probs[chosen_id].item())
+        chosen = events.token_ref(
+            chosen_id, tok.decode([chosen_id]), probs[chosen_id].item(), pos3d(chosen_id)
+        )
 
         yield events.step_event(
             step, chosen, candidates, attention, row.tolist(), list(context)
@@ -165,6 +172,7 @@ def generate_steps(
         context.append(
             events.context_ref(len(context), tok.decode([chosen_id]), is_template=False)
         )
+        context_ids.append(chosen_id)
         input_ids = torch.tensor([[chosen_id]])          # ONLY the new token; the cache has the rest
 
     yield events.done_event(

@@ -1,0 +1,13 @@
+{
+  "model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "method": "UMAP",
+  "tokens": 151665,
+  "n_neighbors": 15,
+  "min_dist": 0.1,
+  "metric": "cosine",
+  "random_state": 0,
+  "fit_seconds": 140.1,
+  "target_radius": 60.0,
+  "scaling": "uniform, centred on median, scaled at the 99.5th percentile radius",
+  "neighbourhood_preservation": 0.7773
+}

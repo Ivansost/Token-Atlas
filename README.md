@@ -17,7 +17,9 @@ a real forward pass through a real model.
 
 ## Status
 
-Pre-build. Scaffolding only — no model code yet.
+**Backend complete and working locally.** A real model runs, streams one event per generated token
+over a WebSocket, and every token has a fixed 3D position derived from the model's own embeddings.
+No frontend yet — that starts at M4.
 
 | Milestone | State |
 |---|---|
@@ -25,7 +27,7 @@ Pre-build. Scaffolding only — no model code yet.
 | M0 · Meet the model (hands-on + attention gate) | ✅ done — gate passed |
 | M1 · Proof of real numbers | ✅ done |
 | M2 · Backend skeleton, schema freeze | ✅ done — schema frozen |
-| M3 · PCA artifact | not started |
+| M3 · Projection artifact | ✅ done — UMAP, 77.7% preservation |
 | M4 · Frontend on fake data, numbers panel, design pass | not started |
 | M5 · Phase 1 complete (deployable) | not started |
 | M6 · Retrieval backend | not started |
