@@ -1,113 +1,149 @@
 import { useState } from 'react'
 
 import { Scene } from './components/Scene'
+import { Transport } from './components/Transport'
+import { usePlayback } from './lib/playback'
 import { useSteps } from './lib/useSteps'
 import { useVocabField } from './lib/useVocabField'
 import { scene as sceneDefaults } from './design/tokens'
 
 /**
- * M4.1: the room and the field, nothing else yet.
+ * M4.1: the room, the field, one decision at a time, and playback.
  *
- * The icon rail and its attached panels arrive at M4.2. The control below is provisional -- it
- * exists so the field's opacity is adjustable while we judge the projection, and it moves into
- * the Display panel when the rail is built.
+ * The icon rail and its attached panels arrive at M4.2, and the display controls below move into
+ * the Display panel when it exists. They are provisional, and deliberately in the top-left rather
+ * than the right: nothing lives on the right in this layout.
  */
 export default function App() {
   const field = useVocabField()
   const run = useSteps()
+  const playback = usePlayback(run.steps.length)
+
   const [fieldOpacity, setFieldOpacity] = useState(sceneDefaults.fieldOpacity)
   const [fieldSize, setFieldSize] = useState(sceneDefaults.fieldPointSize)
-  const [index, setIndex] = useState(0)
+  const [follow, setFollow] = useState(true)
+  const [collapsed, setCollapsed] = useState(false)
 
-  const step = run.steps[index] ?? null
-  const written = run.steps.slice(0, index + 1).map((s) => s.chosen.text).join('')
+  const step = run.steps[playback.index] ?? null
 
   return (
     <div style={{ position: 'relative', height: '100%' }}>
-      <h1 className="sr-only">AI Visualizer — the model’s vocabulary in three dimensions</h1>
+      <h1 className="sr-only">AI Visualizer — watch a language model choose each word</h1>
 
-      <Scene field={field} fieldOpacity={fieldOpacity} fieldSize={fieldSize} step={step} />
+      <Scene
+        field={field}
+        fieldOpacity={fieldOpacity}
+        fieldSize={fieldSize}
+        step={step}
+        follow={follow}
+      />
 
-      <div
-        style={{
-          position: 'absolute',
-          left: 'var(--space-lg)',
-          right: 'var(--space-lg)',
-          bottom: 'var(--space-lg)',
-          display: 'flex',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: 'var(--space-md)',
-          padding: 'var(--space-sm) var(--space-md)',
-          background: 'color-mix(in oklab, var(--surface-panel) 88%, transparent)',
-          border: '1px solid var(--border-hair)',
-          borderRadius: 'var(--radius-lg)',
-          fontSize: '13px',
-          fontWeight: 300,
-          letterSpacing: '0.02em',
-          color: 'var(--text-secondary)',
-        }}
-      >
-        <label htmlFor="field-opacity">Field</label>
-        <input
-          id="field-opacity"
-          type="range"
-          min="0"
-          max="1"
-          step="0.01"
-          value={fieldOpacity}
-          onChange={(event) => setFieldOpacity(Number(event.target.value))}
-          style={{ width: '140px', accentColor: 'var(--candidate)' }}
-        />
-        <span className="data" style={{ color: 'var(--text-muted)', minWidth: '3.5ch' }}>
-          {Math.round(fieldOpacity * 100)}%
-        </span>
+      <div style={leftColumn}>
+      <div style={displayPanel}>
+        <Slider label="Field" id="field-opacity" value={fieldOpacity} onChange={setFieldOpacity}
+          min={0} max={1} step={0.01} format={(v) => `${Math.round(v * 100)}%`} />
+        <Slider label="Dot" id="field-size" value={fieldSize} onChange={setFieldSize}
+          min={1} max={6} step={0.1} format={(v) => v.toFixed(1)} />
 
-        <label htmlFor="field-size">Dot</label>
-        <input
-          id="field-size"
-          type="range"
-          min="1"
-          max="6"
-          step="0.1"
-          value={fieldSize}
-          onChange={(event) => setFieldSize(Number(event.target.value))}
-          style={{ width: '90px', accentColor: 'var(--candidate)' }}
-        />
-        <span className="data" style={{ color: 'var(--text-muted)', minWidth: '4ch' }}>
-          {fieldSize.toFixed(1)}
-        </span>
-        <label htmlFor="step">Step</label>
-        <input
-          id="step"
-          type="range"
-          min="0"
-          max={Math.max(run.steps.length - 1, 0)}
-          step="1"
-          value={index}
-          onChange={(event) => setIndex(Number(event.target.value))}
-          // NOT amber. The Amber Law reserves it for the token the model chose; spending it
-          // on a slider is exactly the drift the rule exists to prevent.
-          style={{ width: '150px', accentColor: 'var(--candidate)' }}
-        />
-        <span className="data" style={{ color: 'var(--text-muted)', minWidth: '5ch' }}>
-          {index + 1}/{run.steps.length}
-        </span>
+        <label style={checkboxRow}>
+          <input type="checkbox" checked={follow} onChange={(e) => setFollow(e.target.checked)}
+            style={{ accentColor: 'var(--candidate)' }} />
+          Follow the chosen token
+        </label>
 
-        <span className="token" style={{ color: 'var(--text-primary)', fontSize: '13px' }}>
-          {written.replace(/ /g, '\u00b7')}
-        </span>
-
-        <span style={{ color: 'var(--text-muted)' }}>
-          {field.status === 'ready' && (
-            <>
-              <span className="data">{field.count.toLocaleString()}</span> tokens
-            </>
-          )}
-          {field.status === 'loading' && 'loading the vocabulary…'}
-          {field.status === 'error' && `field unavailable — ${field.error}`}
-        </span>
+        <div style={{ color: 'var(--text-muted)', fontSize: '11.5px', paddingTop: '2px' }}>
+          {field.status === 'ready'
+            ? <><span className="data">{field.count.toLocaleString()}</span> tokens · fixture run</>
+            : field.status === 'loading' ? 'loading the vocabulary…' : `field unavailable — ${field.error}`}
+        </div>
       </div>
+
+      {step && (
+        <div style={readout}>
+          <span className="token" style={{ color: 'var(--chosen)', fontSize: '15px' }}>
+            {step.chosen.text.replace(/ /g, '·')}
+          </span>
+          <span className="data" style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
+            p={step.chosen.prob.toFixed(4)} · {step.candidates.length} considered ·{' '}
+            {step.attention.length} attention links
+          </span>
+        </div>
+      )}
+      </div>
+
+      {run.steps.length > 0 && (
+        <Transport
+          steps={run.steps}
+          playback={playback}
+          collapsed={collapsed}
+          onToggleCollapse={() => setCollapsed((v) => !v)}
+        />
+      )}
     </div>
   )
+}
+
+function Slider({ label, id, value, onChange, min, max, step, format }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+      <label htmlFor={id} style={{ width: '38px' }}>{label}</label>
+      <input id={id} type="range" min={min} max={max} step={step} value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+        style={{ flex: 1, accentColor: 'var(--candidate)' }} />
+      <span className="data" style={{ color: 'var(--text-muted)', minWidth: '4ch', fontSize: '12px' }}>
+        {format(value)}
+      </span>
+    </div>
+  )
+}
+
+const floating = {
+  position: 'absolute',
+  background: 'color-mix(in oklab, var(--surface-panel) 90%, transparent)',
+  border: '1px solid var(--border-hair)',
+  borderRadius: 'var(--radius-lg)',
+  color: 'var(--text-secondary)',
+  fontSize: '13px',
+  fontWeight: 300,
+  letterSpacing: '0.02em',
+}
+
+const leftColumn = {
+  position: 'absolute',
+  left: 'var(--space-lg)',
+  top: 'var(--space-lg)',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 'var(--space-sm)',
+  // The transport floats along the bottom centre, so the left column stays out of its lane
+  // rather than stacking underneath it.
+  maxHeight: 'calc(100% - 120px)',
+}
+
+const displayPanel = {
+  ...floating,
+  position: 'static',
+  width: '260px',
+  padding: 'var(--space-md)',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 'var(--space-sm)',
+}
+
+const readout = {
+  ...floating,
+  position: 'static',
+  width: '260px',
+  padding: 'var(--space-sm) var(--space-md)',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '2px',
+}
+
+const checkboxRow = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 'var(--space-sm)',
+  fontSize: '12.5px',
+  cursor: 'pointer',
 }

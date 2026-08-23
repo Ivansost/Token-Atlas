@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber'
 
 import { toHex } from '../design/color'
 import { scene as sceneDefaults, theme } from '../design/tokens'
+import { FollowChosen } from './FollowChosen'
 import { LiveLayer } from './LiveLayer'
 import { VocabField } from './VocabField'
 
@@ -16,7 +17,7 @@ import { VocabField } from './VocabField'
  * scene and nothing that needs one: points are unlit material, so the far edge of the vocabulary
  * dissolves into voidDeep instead of ending at a visible boundary.
  */
-export function Scene({ field, fieldOpacity, fieldSize, step }) {
+export function Scene({ field, fieldOpacity, fieldSize, step, follow }) {
   return (
     <Canvas
       camera={{ position: sceneDefaults.cameraStart, fov: 55, near: 0.5, far: 2000 }}
@@ -36,9 +37,11 @@ export function Scene({ field, fieldOpacity, fieldSize, step }) {
       )}
 
       <LiveLayer step={step} />
+      <FollowChosen position={step?.chosen?.pos3d} enabled={follow} />
 
       {/* The camera glides; nothing snaps. Damping is the motion grammar of this world. */}
       <OrbitControls
+        makeDefault
         enableDamping
         dampingFactor={0.06}
         rotateSpeed={0.5}

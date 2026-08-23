@@ -28,7 +28,8 @@ No frontend yet — that starts at M4.
 | M1 · Proof of real numbers | ✅ done |
 | M2 · Backend skeleton, schema freeze | ✅ done — schema frozen |
 | M3 · Projection artifact | ✅ done — UMAP, 77.7% preservation |
-| M4 · Frontend on fake data, numbers panel, design pass | not started |
+| M4.1 · Scene, field, live layer, playback | ✅ done |
+| M4.2 · Icon rail, panels, numbers panel, cross-highlighting | in progress — design pass done |
 | M5 · Phase 1 complete (deployable) | not started |
 | M6 · Retrieval backend | not started |
 | M7 · Retrieval → generation transition | not started |
