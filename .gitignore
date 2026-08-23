@@ -21,3 +21,9 @@ backend/data/chunk_embeddings.*
 .DS_Store
 .idea/
 .vscode/
+
+# Vendored agent skills (frontend-design, apple-design, impeccable).
+# Reinstallable from skills-lock.json, which IS committed.
+.agents/
+.claude/skills/
+.codex/
