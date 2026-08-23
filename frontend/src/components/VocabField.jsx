@@ -5,30 +5,6 @@ import { toHex } from '../design/color'
 import { theme } from '../design/tokens'
 
 /**
- * The vocabulary field: every token the model knows, at its real position.
- *
- * 151,665 points in a SINGLE draw call. They are one BufferGeometry with one BufferAttribute
- * pointing straight at the Float32Array that came off the network -- no per-node objects, no
- * React elements per point. This is the reason the project moved off react-force-graph-3d,
- * which builds a scene object per node and would grind to a halt here.
- *
- * What it means: the whole thing is the model's own semantic space, projected to 3D. The regions
- * are real, because the coordinates come from the model's embeddings rather than from a layout
- * algorithm run for looks.
- *
- * MEASURED, not assumed: the space is organised by MEANING, not by script or token type. CJK
- * tokens spread at 0.98x the whole vocabulary's spread and Latin words at 1.03x -- i.e. they do
- * not cluster together at all. What clusters is sense: " dog" sits beside ·Dog, ·dogs, 犬, 小狗,
- * 狗 and ·canine, so the Chinese word for dog is near the English one rather than near other
- * Chinese words. Do not colour this field by script and call it structure.
- *
- * Why it exists at all: the visual reference is dense, and one generation step has only 40
- * candidates. Rather than fabricate points to fake density, the field supplies real ones.
- *
- * It is deliberately dim. It is ambient texture, not information to read, so it sits below the
- * contrast floor and gets out of the way of the live layer. The opacity is user-controlled.
- */
-/**
  * A crisp disc, generated once at runtime.
  *
  * A default WebGL point is a hard square, which reads as pixelation. The first attempt replaced
@@ -56,6 +32,32 @@ function makeDiscTexture() {
   return texture
 }
 
+/**
+ * The vocabulary field: every token the model knows, at its real position.
+ *
+ * 151,665 points in a SINGLE draw call. They are one BufferGeometry with one BufferAttribute
+ * pointing straight at the Float32Array that came off the network -- no per-node objects, no
+ * React elements per point. This is the reason the project moved off react-force-graph-3d,
+ * which builds a scene object per node and would grind to a halt here.
+ *
+ * What it means: the whole thing is the model's own semantic space, projected to 3D. The regions
+ * are real, because the coordinates come from the model's embeddings rather than from a layout
+ * algorithm run for looks.
+ *
+ * MEASURED, not assumed: the space is organised by MEANING, not by script or token type. CJK
+ * tokens spread at 0.98x the whole vocabulary's spread and Latin words at 1.03x -- i.e. they do
+ * not cluster together at all. What clusters is sense: " dog" sits beside ·Dog, ·dogs, 犬, 小狗,
+ * 狗 and ·canine, so the Chinese word for dog is near the English one rather than near other
+ * Chinese words. Do not colour this field by script and call it structure.
+ *
+ * Why it exists at all: the visual reference is dense, and one generation step has only 40
+ * candidates. Rather than fabricate points to fake density, the field supplies real ones.
+ *
+ * It is deliberately dim, and it is deliberately UNLINKED. Lines in this scene mean attention:
+ * drawing the vocabulary's neighbour graph here was tried and reverted, because 400,000 links on
+ * screen before the model has done anything spends the one visual language the live layer needs.
+ * The field is ambient texture, not information to read.
+ */
 export function VocabField({ positions, count, opacity = 0.55, size = 2.4 }) {
   const materialRef = useRef()
   const disc = useMemo(makeDiscTexture, [])
