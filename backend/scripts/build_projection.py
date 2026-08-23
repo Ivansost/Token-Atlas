@@ -48,6 +48,7 @@ META_PATH = DATA_DIR / "vocab_umap_3d.json"
 #     new Float32Array(await (await fetch(url)).arrayBuffer())
 # It is committed so the frontend deploy needs no Python step.
 WEB_COORDS_PATH = Path(__file__).resolve().parents[2] / "frontend" / "public" / "data" / "vocab_xyz.bin"
+WEB_TOKENS_PATH = WEB_COORDS_PATH.parent / "vocab_tokens.json"
 
 N_NEIGHBORS = 15         # scored best of the values tried at M3
 MIN_DIST = 0.1
@@ -153,11 +154,21 @@ def show_neighbours(coords: np.ndarray) -> None:
 
 
 def export_for_web(coords: np.ndarray) -> None:
-    """Write the same coordinates as a flat float32 buffer the browser can use directly."""
+    """Write the coordinates, and the token text, in forms the browser can use directly."""
     WEB_COORDS_PATH.parent.mkdir(parents=True, exist_ok=True)
     WEB_COORDS_PATH.write_bytes(np.ascontiguousarray(coords, dtype="<f4").tobytes())
-    print(f"exported {WEB_COORDS_PATH}  {coords.shape[0]:,} points  "
+    print(f"exported {WEB_COORDS_PATH.name:<18} {coords.shape[0]:,} points  "
           f"{WEB_COORDS_PATH.stat().st_size / 1e6:.2f} MB")
+
+    # The text of every token, indexed identically to the coordinates. Without this the browser
+    # can draw the vocabulary but cannot say what any of it IS -- clicking a point would return a
+    # number. A point you cannot interrogate is decoration, so this is what makes the field
+    # inspectable rather than atmospheric.
+    tok, _ = get_model()
+    tokens = [tok.decode([i]) for i in range(coords.shape[0])]
+    WEB_TOKENS_PATH.write_text(json.dumps(tokens, ensure_ascii=False), encoding="utf-8")
+    print(f"exported {WEB_TOKENS_PATH.name:<18} {len(tokens):,} strings "
+          f"{WEB_TOKENS_PATH.stat().st_size / 1e6:.2f} MB")
 
 
 def main() -> None:

@@ -58,23 +58,57 @@ function makeDiscTexture() {
  * screen before the model has done anything spends the one visual language the live layer needs.
  * The field is ambient texture, not information to read.
  */
-export function VocabField({ positions, count, opacity = 0.55, size = 2.4 }) {
+export function VocabField({ positions, count, opacity = 0.55, size = 2.4, stride = 1, onSelect }) {
   const materialRef = useRef()
   const disc = useMemo(makeDiscTexture, [])
 
+  // `stride` thins the field UNIFORMLY -- every nth token, never a filtered subset. A visitor
+  // dialling it down sees a sparser sample of the same space with the same shape, rather than a
+  // different vocabulary. `ids` keeps the mapping back to real token ids so a click can still say
+  // what it hit.
+  const { drawn, ids } = useMemo(() => {
+    if (stride <= 1) return { drawn: positions, ids: null }
+    const kept = Math.ceil(count / stride)
+    const out = new Float32Array(kept * 3)
+    const index = new Uint32Array(kept)
+    for (let i = 0, j = 0; i < count; i += stride, j += 1) {
+      out[j * 3] = positions[i * 3]
+      out[j * 3 + 1] = positions[i * 3 + 1]
+      out[j * 3 + 2] = positions[i * 3 + 2]
+      index[j] = i
+    }
+    return { drawn: out, ids: index }
+  }, [positions, count, stride])
+
   const geometry = useMemo(() => {
     const geo = new THREE.BufferGeometry()
-    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+    geo.setAttribute('position', new THREE.BufferAttribute(drawn, 3))
     // The projection is centred on its median already; a sphere spares Three.js the bounding
     // pass over 151k points on every frustum check.
     geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 120)
     return geo
-  }, [positions])
+  }, [drawn])
 
   if (!positions || count === 0) return null
 
   return (
-    <points geometry={geometry} frustumCulled={false}>
+    <points
+      geometry={geometry}
+      frustumCulled={false}
+      onClick={(event) => {
+        event.stopPropagation()
+        const drawnIndex = event.index
+        if (drawnIndex == null) return
+        // `event.index` indexes the DRAWN buffer, which is a subsample when stride > 1, so it has
+        // to be mapped back to the real token id before it means anything.
+        const id = ids ? ids[drawnIndex] : drawnIndex
+        onSelect?.({
+          id,
+          source: 'field',
+          pos3d: [drawn[drawnIndex * 3], drawn[drawnIndex * 3 + 1], drawn[drawnIndex * 3 + 2]],
+        })
+      }}
+    >
       <pointsMaterial
         ref={materialRef}
         color={toHex(theme.color.field)}

@@ -28,6 +28,8 @@ def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("prompt", nargs="*", default=None)
     p.add_argument("--max-tokens", type=int, default=40)
+    p.add_argument("--candidates", type=int, default=40,
+                   help="how many ranked candidates each event carries (the wire payload)")
     p.add_argument("--top", type=int, default=6, help="candidates to print per step (of 40 sent)")
     p.add_argument("--json", action="store_true", help="dump raw events instead of a readable view")
     p.add_argument("--full", action="store_true",
@@ -37,7 +39,7 @@ def main() -> None:
     prompt = " ".join(args.prompt) if args.prompt else DEFAULT_PROMPT
     first = True
 
-    for event in generate_steps(prompt, max_new_tokens=args.max_tokens):
+    for event in generate_steps(prompt, max_new_tokens=args.max_tokens, top_k=args.candidates):
         if args.json:
             print(json.dumps(event))
             continue

@@ -1,8 +1,9 @@
-import { Html, Line } from '@react-three/drei'
+import { Line } from '@react-three/drei'
 import { useMemo } from 'react'
 
-import { toHex } from '../design/color'
+import { toHex, toRGB } from '../design/color'
 import { theme } from '../design/tokens'
+import { DiscPoints } from './DiscPoints'
 
 /**
  * One decision, drawn: what the model considered, what it picked, what it looked at.
@@ -11,42 +12,86 @@ import { theme } from '../design/tokens'
  * to use colour. The field behind it stays grey precisely so these forty objects can own the eye.
  *
  * Every position here is real. A candidate sits at its token's fixed coordinate, so `Paris`,
- * `London` and `巴黎` appear almost on top of each other -- they are within one unit in the
- * projection -- while `The` sits 38 units away. The cloud's shape is the model's own geometry,
- * not a layout.
+ * `London` and `巴黎` appear almost on top of each other -- within one unit in the projection --
+ * while `The` sits 38 units away. The cloud's shape is the model's own geometry, not a layout.
  */
 
-// Probability spans three orders of magnitude in a single step (0.73 down to 0.0002). Radius
-// scales with the SQUARE ROOT so a 73% winner does not visually erase a 0.9% also-ran; on a
-// linear scale the tail would be invisible dots and the step would look like a single choice
-// rather than a distribution.
-const radiusFor = (prob) => 0.55 + 2.3 * Math.sqrt(prob)
+// Candidates are HIGHLIGHTED, not inflated.
+//
+// The first version scaled the winner to ~32px against a 2.4px field, which made it a boulder
+// sitting in dust rather than a token the model picked -- and apparent size started reading as
+// importance-in-general instead of probability. These sizes sit just above the field so the
+// live layer reads as the same kind of object, lit up. Colour and brightness do the work that
+// bulk was doing.
+//
+// Probability still drives diameter, on a SQUARE ROOT scale: it spans three orders of magnitude
+// within one step (0.73 down to 0.000004), and on a linear scale the tail would vanish entirely
+// so a step would look like a single choice rather than a distribution.
+const sizeFor = (prob) => 3 + 8 * Math.sqrt(prob)
+const CHOSEN_BONUS = 4
+// Candidates outside the nucleus sit barely above the field: present, because the model did give
+// them probability, but not claimed as part of the decision.
+const OUTSIDE_SIZE = 2.8
 
-export function LiveLayer({ step, showLabels = true }) {
-  const chosenColor = toHex(theme.color.chosen)
-  const candidateColor = toHex(theme.color.candidate)
+export function LiveLayer({ step, selectedId, onSelect, nucleus = 0.99 }) {
   const attentionColor = toHex(theme.color.attention)
 
-  const { candidates, chosen, links } = useMemo(() => {
-    if (!step) return { candidates: [], chosen: null, links: [] }
+  const cloud = useMemo(() => {
+    const positioned = step?.candidates.filter((c) => c.pos3d) ?? []
+    if (positioned.length === 0) return null
 
-    const positioned = step.candidates.filter((c) => c.pos3d)
-    const chosenRef = step.chosen.pos3d ? step.chosen : null
+    // THE NUCLEUS: the smallest set of candidates whose probabilities sum to the threshold.
+    //
+    // A fixed count is the wrong unit. Measured on a real run, the model needed 11 candidates to
+    // reach 99% when choosing "Paris", and exactly ONE for "capital", "France" and the stop token
+    // -- it was not deciding there, it was completing. Lighting the same 200 nodes at every step
+    // would show deliberation that did not happen.
+    //
+    // So the highlight is adaptive: everything below the cutoff still renders, faintly, because
+    // the model really did assign it something -- but only the nucleus is lit. How many nodes
+    // light up becomes the reading: a wide constellation is a genuine decision, a single amber
+    // point is a foregone conclusion. Same idea as nucleus sampling, applied to display rather
+    // than to selection.
+    let mass = 0
+    let cutoff = positioned.length
+    for (let i = 0; i < positioned.length; i += 1) {
+      mass += positioned[i].prob
+      if (mass >= nucleus) { cutoff = i + 1; break }
+    }
 
-    // Attention is drawn FROM the token just chosen BACK to the earlier positions it weighted
-    // most heavily. Direction matters: this is "what this position looked at", never "what caused
-    // this word", and the arrow of the line is the only thing carrying that.
-    const from = chosenRef?.pos3d
-    const built = from
-      ? step.attention
-          .filter((a) => a.pos3d)
-          .map((a) => ({ ...a, points: [from, a.pos3d] }))
-      : []
+    const chosenRGB = toRGB(theme.color.chosen)
+    const candidateRGB = toRGB(theme.color.candidate)
+    const fieldRGB = toRGB(theme.color.field)
 
-    return { candidates: positioned, chosen: chosenRef, links: built }
+    const positions = new Float32Array(positioned.length * 3)
+    const sizes = new Float32Array(positioned.length)
+    const tints = new Float32Array(positioned.length * 3)
+    const alphas = new Float32Array(positioned.length)
+
+    positioned.forEach((candidate, i) => {
+      const isChosen = candidate.id === step.chosen.id
+      const isSelected = candidate.id === selectedId
+      const inNucleus = i < cutoff
+
+      const rgb = isChosen ? chosenRGB : inNucleus ? candidateRGB : fieldRGB
+      const base = inNucleus ? sizeFor(candidate.prob) : OUTSIDE_SIZE
+
+      positions.set(candidate.pos3d, i * 3)
+      sizes[i] = (base + (isChosen ? CHOSEN_BONUS : 0)) * (isSelected ? 1.6 : 1)
+      tints.set(rgb, i * 3)
+      alphas[i] = isChosen ? 1 : inNucleus ? 0.45 + 0.5 * Math.sqrt(candidate.prob) : 0.28
+    })
+
+    return { positions, sizes, tints, alphas, items: positioned, cutoff }
+  }, [step, selectedId, nucleus])
+
+  const links = useMemo(() => {
+    const from = step?.chosen?.pos3d
+    if (!from) return []
+    return step.attention.filter((a) => a.pos3d).map((a) => ({ ...a, points: [from, a.pos3d] }))
   }, [step])
 
-  if (!step) return null
+  if (!step || !cloud) return null
 
   const maxWeight = links.reduce((max, link) => Math.max(max, link.weight), 0) || 1
 
@@ -58,51 +103,41 @@ export function LiveLayer({ step, showLabels = true }) {
           points={link.points}
           color={attentionColor}
           // Weight is carried by thickness AND opacity, never by colour alone, so the ranking
-          // survives greyscale and colour-blindness.
-          lineWidth={0.6 + 3.4 * (link.weight / maxWeight)}
+          // survives greyscale and colour blindness.
+          lineWidth={0.6 + 3.2 * (link.weight / maxWeight)}
           transparent
-          opacity={0.25 + 0.6 * (link.weight / maxWeight)}
+          opacity={0.22 + 0.6 * (link.weight / maxWeight)}
           depthWrite={false}
         />
       ))}
 
-      {candidates.map((candidate) => {
-        const isChosen = candidate.id === step.chosen.id
-        return (
-          <mesh key={candidate.id} position={candidate.pos3d}>
-            <sphereGeometry args={[radiusFor(candidate.prob), 16, 12]} />
-            <meshBasicMaterial
-              color={isChosen ? chosenColor : candidateColor}
-              transparent
-              opacity={isChosen ? 1 : 0.45 + 0.5 * Math.sqrt(candidate.prob)}
-              fog={false}
-            />
-          </mesh>
-        )
-      })}
+      <DiscPoints
+        positions={cloud.positions}
+        sizes={cloud.sizes}
+        tints={cloud.tints}
+        alphas={cloud.alphas}
+      />
 
-      {showLabels && chosen && (
-        <Html position={chosen.pos3d} center={false} distanceFactor={90} zIndexRange={[10, 0]}>
-          <div style={labelStyle}>
-            <span className="token">{chosen.text.replace(/ /g, '·')}</span>
-            <span className="data" style={{ opacity: 0.75 }}>{chosen.prob.toFixed(4)}</span>
-          </div>
-        </Html>
-      )}
+      {/*
+        Hit targets. The discs are drawn at a constant PIXEL size, which a world-space raycast
+        cannot reason about, so picking rides on invisible spheres sized in world units. They are
+        deliberately generous -- clicking a 2-pixel dot is not an interaction, it is a test.
+      */}
+      {cloud.items.map((candidate) => (
+        <mesh
+          key={candidate.id}
+          position={candidate.pos3d}
+          onClick={(event) => {
+            event.stopPropagation()
+            onSelect?.({ ...candidate, source: 'candidate', chosen: candidate.id === step.chosen.id })
+          }}
+          onPointerOver={() => { document.body.style.cursor = 'pointer' }}
+          onPointerOut={() => { document.body.style.cursor = '' }}
+        >
+          <sphereGeometry args={[0.7 + 1.4 * Math.sqrt(candidate.prob), 8, 6]} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+        </mesh>
+      ))}
     </group>
   )
-}
-
-// Labels float beside objects and never sit in a box -- no panel, no border, no backdrop.
-const labelStyle = {
-  transform: 'translate(26px, -50%)',
-  display: 'flex',
-  gap: '10px',
-  alignItems: 'baseline',
-  whiteSpace: 'nowrap',
-  color: 'var(--chosen)',
-  fontSize: '13px',
-  letterSpacing: '0.02em',
-  pointerEvents: 'none',
-  userSelect: 'none',
 }

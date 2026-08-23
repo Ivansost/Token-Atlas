@@ -18,6 +18,7 @@ function encode(channel) {
 }
 
 const cache = new Map()
+const rgbCache = new Map()
 
 /** `oklch(0.80 0.14 70)` -> `0xrrggbb`, cached. Non-OKLCH strings pass through untouched. */
 export function toHex(value) {
@@ -46,4 +47,18 @@ export function toHex(value) {
   const hex = rgb.reduce((acc, channel) => (acc << 8) | Math.round(channel * 255), 0)
   cache.set(value, hex)
   return hex
+}
+
+/**
+ * `oklch(...)` -> `[r, g, b]` in 0..1, for per-point colour buffers.
+ *
+ * Three's vertex/attribute colours want floats per channel rather than a packed integer, and this
+ * runs once per candidate per step, so the result is cached alongside the hex form.
+ */
+export function toRGB(value) {
+  if (rgbCache.has(value)) return rgbCache.get(value)
+  const hex = toHex(value)
+  const rgb = [((hex >> 16) & 255) / 255, ((hex >> 8) & 255) / 255, (hex & 255) / 255]
+  rgbCache.set(value, rgb)
+  return rgb
 }
