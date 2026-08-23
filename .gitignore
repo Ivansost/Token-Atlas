@@ -27,3 +27,4 @@ backend/data/chunk_embeddings.*
 .agents/
 .claude/skills/
 .codex/
+.impeccable/
