@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import { Scene } from './components/Scene'
+import { useSteps } from './lib/useSteps'
 import { useVocabField } from './lib/useVocabField'
 import { scene as sceneDefaults } from './design/tokens'
 
@@ -13,22 +14,29 @@ import { scene as sceneDefaults } from './design/tokens'
  */
 export default function App() {
   const field = useVocabField()
+  const run = useSteps()
   const [fieldOpacity, setFieldOpacity] = useState(sceneDefaults.fieldOpacity)
   const [fieldSize, setFieldSize] = useState(sceneDefaults.fieldPointSize)
+  const [index, setIndex] = useState(0)
+
+  const step = run.steps[index] ?? null
+  const written = run.steps.slice(0, index + 1).map((s) => s.chosen.text).join('')
 
   return (
     <div style={{ position: 'relative', height: '100%' }}>
       <h1 className="sr-only">AI Visualizer — the model’s vocabulary in three dimensions</h1>
 
-      <Scene field={field} fieldOpacity={fieldOpacity} fieldSize={fieldSize} />
+      <Scene field={field} fieldOpacity={fieldOpacity} fieldSize={fieldSize} step={step} />
 
       <div
         style={{
           position: 'absolute',
           left: 'var(--space-lg)',
+          right: 'var(--space-lg)',
           bottom: 'var(--space-lg)',
           display: 'flex',
           alignItems: 'center',
+          flexWrap: 'wrap',
           gap: 'var(--space-md)',
           padding: 'var(--space-sm) var(--space-md)',
           background: 'color-mix(in oklab, var(--surface-panel) 88%, transparent)',
@@ -69,6 +77,27 @@ export default function App() {
         <span className="data" style={{ color: 'var(--text-muted)', minWidth: '4ch' }}>
           {fieldSize.toFixed(1)}
         </span>
+        <label htmlFor="step">Step</label>
+        <input
+          id="step"
+          type="range"
+          min="0"
+          max={Math.max(run.steps.length - 1, 0)}
+          step="1"
+          value={index}
+          onChange={(event) => setIndex(Number(event.target.value))}
+          // NOT amber. The Amber Law reserves it for the token the model chose; spending it
+          // on a slider is exactly the drift the rule exists to prevent.
+          style={{ width: '150px', accentColor: 'var(--candidate)' }}
+        />
+        <span className="data" style={{ color: 'var(--text-muted)', minWidth: '5ch' }}>
+          {index + 1}/{run.steps.length}
+        </span>
+
+        <span className="token" style={{ color: 'var(--text-primary)', fontSize: '13px' }}>
+          {written.replace(/ /g, '\u00b7')}
+        </span>
+
         <span style={{ color: 'var(--text-muted)' }}>
           {field.status === 'ready' && (
             <>
