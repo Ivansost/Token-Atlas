@@ -43,6 +43,12 @@ DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 COORDS_PATH = DATA_DIR / "vocab_umap_3d.npy"
 META_PATH = DATA_DIR / "vocab_umap_3d.json"
 
+# The browser cannot parse .npy. The same coordinates are also written as a raw little-endian
+# float32 dump, which JS reads with zero parsing:
+#     new Float32Array(await (await fetch(url)).arrayBuffer())
+# It is committed so the frontend deploy needs no Python step.
+WEB_COORDS_PATH = Path(__file__).resolve().parents[2] / "frontend" / "public" / "data" / "vocab_xyz.bin"
+
 N_NEIGHBORS = 15         # scored best of the values tried at M3
 MIN_DIST = 0.1
 TARGET_RADIUS = 60.0     # scene units
@@ -146,10 +152,24 @@ def show_neighbours(coords: np.ndarray) -> None:
         print(f"     3-D neighbours : {fmt(lo_best)}")
 
 
+def export_for_web(coords: np.ndarray) -> None:
+    """Write the same coordinates as a flat float32 buffer the browser can use directly."""
+    WEB_COORDS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    WEB_COORDS_PATH.write_bytes(np.ascontiguousarray(coords, dtype="<f4").tobytes())
+    print(f"exported {WEB_COORDS_PATH}  {coords.shape[0]:,} points  "
+          f"{WEB_COORDS_PATH.stat().st_size / 1e6:.2f} MB")
+
+
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--check", action="store_true", help="score the projection and show neighbours")
+    p.add_argument("--export-only", action="store_true",
+                   help="skip the 2-minute fit; just re-export the existing .npy for the browser")
     args = p.parse_args()
+
+    if args.export_only:
+        export_for_web(np.load(COORDS_PATH))
+        return
 
     coords, meta = build()
 
@@ -162,6 +182,7 @@ def main() -> None:
     DATA_DIR.mkdir(exist_ok=True)
     np.save(COORDS_PATH, coords)
     META_PATH.write_text(json.dumps(meta, indent=2) + "\n")
+    export_for_web(coords)
 
     span = coords.max(axis=0) - coords.min(axis=0)
     print(f"\nsaved {COORDS_PATH}  {coords.shape}  {COORDS_PATH.stat().st_size / 1e6:.2f} MB")
