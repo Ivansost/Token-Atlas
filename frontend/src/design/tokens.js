@@ -65,7 +65,6 @@ export const scene = {
   cameraStart: [0, 6, 118],
   fieldPointSize: 2.4,    // PIXELS, not world units -- size attenuation is off so zoom separates
   fieldOpacity: 0.55,     // user-controllable; the field must recede behind the live layer
-  edgeOpacity: 0.022,     // 400k neighbour links; individually invisible, collectively the shape
   minDistance: 1.5,       // fly right inside the core
 }
 

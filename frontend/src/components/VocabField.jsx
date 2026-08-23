@@ -56,35 +56,18 @@ function makeDiscTexture() {
   return texture
 }
 
-export function VocabField({ positions, count, clusters, palette, opacity = 0.55, size = 2.4 }) {
+export function VocabField({ positions, count, opacity = 0.55, size = 2.4 }) {
   const materialRef = useRef()
   const disc = useMemo(makeDiscTexture, [])
 
   const geometry = useMemo(() => {
     const geo = new THREE.BufferGeometry()
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-
-    // One colour per token, from the region it belongs to. Regions were found by clustering the
-    // projected space and are labelled by the tokens nearest each centre, so every hue on screen
-    // corresponds to something inspectable -- there is a "snakes" region, a "days of the week"
-    // region, a "C++ headers" region. Colour by script or character class was measured and
-    // rejected: the vocabulary does not group that way.
-    if (clusters && palette?.length) {
-      const colors = new Float32Array(count * 3)
-      for (let i = 0; i < count; i += 1) {
-        const [r, g, b] = palette[clusters[i] % palette.length]
-        colors[i * 3] = r
-        colors[i * 3 + 1] = g
-        colors[i * 3 + 2] = b
-      }
-      geo.setAttribute('color', new THREE.BufferAttribute(colors, 3))
-    }
-
     // The projection is centred on its median already; a sphere spares Three.js the bounding
     // pass over 151k points on every frustum check.
     geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 120)
     return geo
-  }, [positions, count, clusters, palette])
+  }, [positions])
 
   if (!positions || count === 0) return null
 
@@ -92,8 +75,7 @@ export function VocabField({ positions, count, clusters, palette, opacity = 0.55
     <points geometry={geometry} frustumCulled={false}>
       <pointsMaterial
         ref={materialRef}
-        color={clusters ? 0xffffff : toHex(theme.color.field)}
-        vertexColors={Boolean(clusters)}
+        color={toHex(theme.color.field)}
         map={disc}
         alphaMap={disc}
         size={size}
