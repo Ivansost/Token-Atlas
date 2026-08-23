@@ -1,8 +1,10 @@
 import { OrbitControls } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
+import { Bloom, EffectComposer } from '@react-three/postprocessing'
 
 import { toHex } from '../design/color'
 import { scene as sceneDefaults, theme } from '../design/tokens'
+import { VocabEdges } from './VocabEdges'
 import { VocabField } from './VocabField'
 
 /**
@@ -15,7 +17,9 @@ import { VocabField } from './VocabField'
  * scene and nothing that needs one: points are unlit material, so the far edge of the vocabulary
  * dissolves into voidDeep instead of ending at a visible boundary.
  */
-export function Scene({ field, fieldOpacity, fieldSize }) {
+export function Scene({ field, atlas, palette, fieldOpacity, fieldSize, edgeOpacity }) {
+  const ready = field.status === 'ready'
+
   return (
     <Canvas
       camera={{ position: sceneDefaults.cameraStart, fov: 55, near: 0.5, far: 2000 }}
@@ -25,14 +29,37 @@ export function Scene({ field, fieldOpacity, fieldSize }) {
     >
       <fogExp2 attach="fog" args={[toHex(theme.color.voidDeep), sceneDefaults.fogDensity]} />
 
-      {field.status === 'ready' && (
+      {ready && atlas.status === 'ready' && (
+        <VocabEdges positions={field.positions} edges={atlas.edges} opacity={edgeOpacity} />
+      )}
+
+      {ready && (
         <VocabField
           positions={field.positions}
           count={field.count}
+          clusters={atlas.status === 'ready' ? atlas.clusters : null}
+          palette={palette}
           opacity={fieldOpacity}
           size={fieldSize ?? sceneDefaults.fieldPointSize}
         />
       )}
+
+      {/*
+        Bloom is the one purely visual effect in the project, and it earns its place: it makes
+        dense regions bleed light, so brightness reads as density the way it does in the reference
+        atlas. It adds no data and claims nothing -- the threshold is set high enough that only
+        genuinely bright accumulations glow, rather than washing the whole field.
+      */}
+      <EffectComposer>
+        <Bloom
+          intensity={0.5}
+          // High threshold on purpose: only genuinely bright accumulations bloom. Lower values
+          // lit the entire field and turned every region colour into the same pale wash.
+          luminanceThreshold={0.55}
+          luminanceSmoothing={0.35}
+          mipmapBlur
+        />
+      </EffectComposer>
 
       {/* The camera glides; nothing snaps. Damping is the motion grammar of this world. */}
       <OrbitControls
