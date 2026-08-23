@@ -14,12 +14,13 @@ import { scene as sceneDefaults } from './design/tokens'
 export default function App() {
   const field = useVocabField()
   const [fieldOpacity, setFieldOpacity] = useState(sceneDefaults.fieldOpacity)
+  const [fieldSize, setFieldSize] = useState(sceneDefaults.fieldPointSize)
 
   return (
     <div style={{ position: 'relative', height: '100%' }}>
       <h1 className="sr-only">AI Visualizer — the model’s vocabulary in three dimensions</h1>
 
-      <Scene field={field} fieldOpacity={fieldOpacity} />
+      <Scene field={field} fieldOpacity={fieldOpacity} fieldSize={fieldSize} />
 
       <div
         style={{
@@ -52,6 +53,21 @@ export default function App() {
         />
         <span className="data" style={{ color: 'var(--text-muted)', minWidth: '3.5ch' }}>
           {Math.round(fieldOpacity * 100)}%
+        </span>
+
+        <label htmlFor="field-size">Dot</label>
+        <input
+          id="field-size"
+          type="range"
+          min="1"
+          max="6"
+          step="0.1"
+          value={fieldSize}
+          onChange={(event) => setFieldSize(Number(event.target.value))}
+          style={{ width: '90px', accentColor: 'var(--candidate)' }}
+        />
+        <span className="data" style={{ color: 'var(--text-muted)', minWidth: '4ch' }}>
+          {fieldSize.toFixed(1)}
         </span>
         <span style={{ color: 'var(--text-muted)' }}>
           {field.status === 'ready' && (

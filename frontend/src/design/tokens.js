@@ -61,10 +61,11 @@ export const theme = {
  * structure disappears, and the field stops being the ambient texture it is supposed to be.
  */
 export const scene = {
-  fogDensity: 0.0052,     // exponential; the far edge of the vocabulary dissolves rather than ending
+  fogDensity: 0.0036,     // exponential; the far edge of the vocabulary dissolves rather than ending
   cameraStart: [0, 6, 118],
-  fieldPointSize: 0.85,
-  fieldOpacity: 0.3,      // user-controllable; the field must recede behind the live layer
+  fieldPointSize: 2.4,    // PIXELS, not world units -- size attenuation is off so zoom separates
+  fieldOpacity: 0.55,     // user-controllable; the field must recede behind the live layer
+  minDistance: 1.5,       // fly right inside the core
 }
 
 const cssName = (key) => `--${key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`
