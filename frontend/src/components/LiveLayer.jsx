@@ -1,5 +1,6 @@
 import { Line } from '@react-three/drei'
 import { useMemo } from 'react'
+import * as THREE from 'three'
 
 import { toHex, toRGB } from '../design/color'
 import { theme } from '../design/tokens'
@@ -132,6 +133,23 @@ export function LiveLayer({ step, selectedId, hoveredId, onSelect, nucleus = 0.9
         tints={cloud.tints}
         alphas={cloud.haloAlphas}
         additive
+      />
+
+      {/*
+        HALO, drawn first so the crisp disc sits on top of it.
+
+        This is glow built from geometry rather than from a post-processing pass. The obvious
+        approach -- EffectComposer + Bloom -- renders a completely black frame on postprocessing
+        3.1 with React Three Fiber 9, which is not a subtle bug: the canvas mounts, the data
+        loads, and nothing is drawn at all. A wide, faint, additively-blended copy of the same
+        points gives the lit layer presence with no compositor involved and nothing to break.
+      */}
+      <DiscPoints
+        positions={cloud.positions}
+        sizes={cloud.halos}
+        tints={cloud.tints}
+        alphas={cloud.haloAlphas}
+        blending={THREE.AdditiveBlending}
       />
 
       <DiscPoints
