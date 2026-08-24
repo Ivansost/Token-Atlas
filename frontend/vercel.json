@@ -3,15 +3,25 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/projects/token-atlas/demo",
+      "destination": "/"
+    },
+    {
+      "source": "/projects/token-atlas/demo/:path*",
+      "destination": "/:path*"
+    }
+  ],
   "headers": [
     {
-      "source": "/assets/(.*)",
+      "source": "/projects/token-atlas/demo/assets/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
     },
     {
-      "source": "/data/(.*)",
+      "source": "/projects/token-atlas/demo/data/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=604800" }
       ]

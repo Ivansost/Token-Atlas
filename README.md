@@ -20,6 +20,8 @@ real forward pass, and the legend states the limits as plainly as the features.
 candidates it weighed, the earlier tokens it attended to, and the exact numbers behind both.
 Playback is pausable, scrubbable and speed-controlled.
 
+**Live demo:** [ivansostaric.com/projects/token-atlas/demo](https://www.ivansostaric.com/projects/token-atlas/demo)
+
 The backend runs on Modal. Measured against the deployment: **15 s** cold container boot, **~1.2 s**
 to load the weights (they ship inside the image rather than being downloaded), and ~690 MB peak
 memory after a 115-token run — comfortably inside a 1 GB container.
@@ -115,15 +117,16 @@ insists the model is offline while pointing at `localhost:8000`.
 [`vercel.json`](frontend/vercel.json) sets the caching policy — and the reasoning lives here
 because Vercel validates that file strictly and rejects unknown keys, so it cannot carry comments:
 
-- `/assets/*` is **immutable**. Vite fingerprints those filenames with a content hash, so a changed
-  file is a changed URL and a stale cache is impossible.
-- `/data/*` gets **a week, not immutable**. The vocabulary artifacts are copied through `public/`
-  with their names intact, so `immutable` would strand a stale 1.8 MB coordinate map in every
-  browser cache the day they are regenerated.
+- `/projects/token-atlas/demo/assets/*` is **immutable**. Vite fingerprints those filenames with a
+  content hash, so a changed file is a changed URL and a stale cache is impossible.
+- `/projects/token-atlas/demo/data/*` gets **a week, not immutable**. The vocabulary artifacts are
+  copied through `public/` with their names intact, so `immutable` would strand a stale 1.8 MB
+  coordinate map in every browser cache the day they are regenerated.
 
-Afterwards, put the Vercel URL into `FRONTEND_ORIGIN` in
-[`deploy/modal_app.py`](deploy/modal_app.py) and run `modal deploy` again, or the deployed page
-cannot read `/health`.
+The Vite base path and Vercel rewrites keep the standalone deployment working while allowing the
+portfolio to proxy the app at `/projects/token-atlas/demo`. Every public frontend origin must also
+be listed in `FRONTEND_ORIGINS` in [`deploy/modal_app.py`](deploy/modal_app.py); run `modal deploy`
+again after changing that tuple or the new origin cannot read `/health`.
 
 ### Deploying the frontend anywhere else
 

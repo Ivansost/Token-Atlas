@@ -20,17 +20,20 @@ import sys
 
 import modal
 
-# EDIT THIS after deploying the frontend, then redeploy.
-#
-# The browser fetches /health from the deployed page's origin, and FastAPI's CORS middleware
-# blocks it unless that origin is allowed. WebSockets are not subject to CORS, so the symptom is
-# specific and confusing: generation works, but the interface cannot tell whether the model is
-# loaded. Localhost is always permitted, so development needs nothing here.
-FRONTEND_ORIGIN = "https://token-atlas-project.vercel.app"
+# The browser fetches /health from both the standalone deployment and the portfolio route.
+# WebSockets are not subject to CORS, so omitting one of these origins creates a confusing split:
+# generation works, but the interface cannot report whether the model is loaded.
+FRONTEND_ORIGINS = (
+    "https://token-atlas-project.vercel.app",
+    "https://www.ivansostaric.com",
+    "https://ivansostaric.com",
+)
 
 # The same Dockerfile that `docker build -t aiviz .` uses. Modal builds it for linux/amd64 and
 # ignores EXPOSE/CMD, running its own server against the ASGI app below.
-image = modal.Image.from_dockerfile("Dockerfile").env({"ALLOWED_ORIGINS": FRONTEND_ORIGIN})
+image = modal.Image.from_dockerfile("Dockerfile").env(
+    {"ALLOWED_ORIGINS": ",".join(FRONTEND_ORIGINS)}
+)
 
 app = modal.App("ai-visualizer", image=image)
 
