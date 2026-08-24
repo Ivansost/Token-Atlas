@@ -112,9 +112,14 @@ vercel --prod
 a value added later has no effect until the next deploy — and the symptom is a live site that
 insists the model is offline while pointing at `localhost:8000`.
 
-[`vercel.json`](frontend/vercel.json) sets the caching policy. Hashed assets are immutable; the
-vocabulary artifacts get a week, because Vite copies `public/` through without fingerprinting and
-`immutable` would strand a stale map in every cache the day they are regenerated.
+[`vercel.json`](frontend/vercel.json) sets the caching policy — and the reasoning lives here
+because Vercel validates that file strictly and rejects unknown keys, so it cannot carry comments:
+
+- `/assets/*` is **immutable**. Vite fingerprints those filenames with a content hash, so a changed
+  file is a changed URL and a stale cache is impossible.
+- `/data/*` gets **a week, not immutable**. The vocabulary artifacts are copied through `public/`
+  with their names intact, so `immutable` would strand a stale 1.8 MB coordinate map in every
+  browser cache the day they are regenerated.
 
 Afterwards, put the Vercel URL into `FRONTEND_ORIGIN` in
 [`deploy/modal_app.py`](deploy/modal_app.py) and run `modal deploy` again, or the deployed page
