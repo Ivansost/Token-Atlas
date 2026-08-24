@@ -1,3 +1,4 @@
+import { ChevronDown, ChevronUp, ChevronsLeft, Pause, Play } from 'lucide-react'
 import { useEffect, useMemo, useRef } from 'react'
 
 import { SPEEDS } from '../lib/playback'
@@ -17,7 +18,7 @@ import { SPEEDS } from '../lib/playback'
  * Collapsing leaves a pill with the play control and the step counter, so the scene can run
  * unobstructed without losing the ability to stop it.
  */
-export function Transport({ steps, playback, collapsed, onToggleCollapse }) {
+export function Transport({ steps, playback, collapsed, onToggleCollapse, reducedMotion = false }) {
   const { index, playing, speed, toggle, restart, seek, setSpeed } = playback
   const total = steps.length
   const strip = useRef(null)
@@ -26,8 +27,12 @@ export function Transport({ steps, playback, collapsed, onToggleCollapse }) {
   // timeline you have to chase is worse than no timeline.
   useEffect(() => {
     const current = strip.current?.querySelector('[data-current="true"]')
-    current?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
-  }, [index])
+    current?.scrollIntoView({
+      behavior: reducedMotion ? 'auto' : 'smooth',
+      block: 'nearest',
+      inline: 'center',
+    })
+  }, [index, reducedMotion])
 
   /**
    * Tokens grouped into the words they spell.
@@ -56,21 +61,29 @@ export function Transport({ steps, playback, collapsed, onToggleCollapse }) {
     return (
       <div style={{ ...shell, padding: '6px 10px', gap: 'var(--space-sm)' }}>
         <IconButton label={playing ? 'Pause' : 'Play'} onClick={toggle}>
-          {playing ? '❚❚' : '▶'}
+          {playing
+            ? <Pause size={15} strokeWidth={1.8} aria-hidden="true" />
+            : <Play size={15} strokeWidth={1.8} aria-hidden="true" />}
         </IconButton>
         <span className="data" style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
           {index + 1}/{total}
         </span>
-        <IconButton label="Show the timeline" onClick={onToggleCollapse}>⌃</IconButton>
+        <IconButton label="Show the timeline" onClick={onToggleCollapse}>
+          <ChevronUp size={15} strokeWidth={1.8} aria-hidden="true" />
+        </IconButton>
       </div>
     )
   }
 
   return (
     <div style={shell}>
-      <IconButton label="Back to the first token" onClick={restart}>◀◀</IconButton>
-      <IconButton label={playing ? 'Pause' : 'Play'} onClick={toggle} size={17}>
-        {playing ? '❚❚' : '▶'}
+      <IconButton label="Back to the first token" onClick={restart}>
+        <ChevronsLeft size={16} strokeWidth={1.8} aria-hidden="true" />
+      </IconButton>
+      <IconButton label={playing ? 'Pause' : 'Play'} onClick={toggle}>
+        {playing
+          ? <Pause size={17} strokeWidth={1.8} aria-hidden="true" />
+          : <Play size={17} strokeWidth={1.8} aria-hidden="true" />}
       </IconButton>
 
       <div ref={strip} style={timelineStrip} role="group" aria-label="Generated tokens">
@@ -86,8 +99,9 @@ export function Transport({ steps, playback, collapsed, onToggleCollapse }) {
                   type="button"
                   onClick={() => seek(i)}
                   data-current={i === index}
+                  aria-current={i === index ? 'step' : undefined}
                   title={`step ${i + 1} — ${JSON.stringify(step.chosen.text)} (${step.chosen.prob.toFixed(4)})`}
-                  className="token"
+                  className="token timeline-cell"
                   style={{
                     ...cell,
                     ...cellState[state],
@@ -125,15 +139,17 @@ export function Transport({ steps, playback, collapsed, onToggleCollapse }) {
         ))}
       </select>
 
-      <IconButton label="Hide the timeline" onClick={onToggleCollapse}>⌄</IconButton>
+      <IconButton label="Hide the timeline" onClick={onToggleCollapse}>
+        <ChevronDown size={15} strokeWidth={1.8} aria-hidden="true" />
+      </IconButton>
     </div>
   )
 }
 
-function IconButton({ children, label, onClick, size = 14 }) {
+function IconButton({ children, label, onClick }) {
   return (
     <button type="button" onClick={onClick} aria-label={label} title={label}
-      style={{ ...iconButton, fontSize: `${size}px` }}>
+      className="icon-control" style={iconButton}>
       {children}
     </button>
   )
@@ -171,8 +187,10 @@ const cell = {
   // available width it scrolls.
   flex: '0 0 auto',
   border: 'none',
+  minWidth: '24px',
+  minHeight: '28px',
   padding: '4px 7px',
-  fontSize: '11.5px',
+  fontSize: '12px',
   lineHeight: 1.3,
   whiteSpace: 'nowrap',
   overflow: 'hidden',
@@ -184,13 +202,23 @@ const cellState = {
   // Amber marks the token the model chose -- here, the decision currently on screen.
   current: { background: 'var(--chosen)', color: 'var(--void)' },
   past: { background: 'var(--surface-raised)', color: 'var(--text-secondary)' },
-  ahead: { background: 'color-mix(in oklab, var(--surface-raised) 55%, transparent)', color: 'var(--template)' },
+  ahead: {
+    background: 'color-mix(in oklab, var(--surface-raised) 55%, transparent)',
+    color: 'var(--text-muted)',
+  },
 }
 
 const iconButton = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: '28px',
+  height: '28px',
+  flex: 'none',
   background: 'none',
   border: 'none',
-  padding: '2px 4px',
+  borderRadius: 'var(--radius-sm)',
+  padding: 0,
   color: 'var(--text-secondary)',
   cursor: 'pointer',
   lineHeight: 1,
@@ -201,6 +229,7 @@ const speedSelect = {
   color: 'var(--text-secondary)',
   border: '1px solid var(--border-hair)',
   borderRadius: 'var(--radius-sm)',
-  padding: '3px 4px',
+  minHeight: '28px',
+  padding: '3px 6px',
   fontSize: '12px',
 }

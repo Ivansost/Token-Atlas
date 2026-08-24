@@ -20,6 +20,9 @@ import { VocabField } from './VocabField'
 export function Scene({ field, fieldOpacity, fieldSize, step, follow, nucleus, stride, selected, hoveredId, onSelect }) {
   return (
     <Canvas
+      role="img"
+      aria-label="Interactive 3D map of the model's vocabulary"
+      aria-describedby="scene-description"
       camera={{ position: sceneDefaults.cameraStart, fov: 55, near: 0.5, far: 2000 }}
       dpr={[1, 2]}
       gl={{ antialias: true, powerPreference: 'high-performance' }}

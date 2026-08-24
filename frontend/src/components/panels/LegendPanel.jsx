@@ -68,7 +68,7 @@ export function LegendPanel() {
 function Entry({ swatch, title, children }) {
   return (
     <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
-      <span style={{ ...dot, background: swatch }} />
+      <span aria-hidden="true" style={{ ...dot, background: swatch }} />
       <div>
         <h3 style={h3}>{title}</h3>
         <p style={body}>{children}</p>
@@ -78,6 +78,6 @@ function Entry({ swatch, title, children }) {
 }
 
 const dot = { width: '9px', height: '9px', borderRadius: '50%', flex: 'none', marginTop: '5px' }
-const h3 = { margin: 0, fontSize: '12.5px', fontWeight: 400, color: 'var(--text-primary)' }
-const body = { margin: '2px 0 0', fontSize: '11.5px', lineHeight: 1.55, color: 'var(--text-muted)' }
+const h3 = { margin: 0, fontSize: '13px', fontWeight: 400, color: 'var(--text-primary)' }
+const body = { margin: '2px 0 0', fontSize: '12.5px', lineHeight: 1.55, color: 'var(--text-muted)' }
 const rule = { borderTop: '1px solid var(--border-hair)', paddingTop: 'var(--space-md)' }

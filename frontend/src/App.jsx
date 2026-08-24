@@ -1,150 +1,108 @@
-import { Crosshair, Info, ListOrdered, Play, SlidersHorizontal } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 
-import { ConnectionStatus } from './components/ConnectionStatus'
-import { Panel } from './components/Panel'
-import { Rail } from './components/Rail'
-import { Scene } from './components/Scene'
-import { Transport } from './components/Transport'
-import { CandidatesPanel } from './components/panels/CandidatesPanel'
-import { DisplayPanel } from './components/panels/DisplayPanel'
-import { LegendPanel } from './components/panels/LegendPanel'
-import { RunPanel } from './components/panels/RunPanel'
-import { SelectionPanel } from './components/panels/SelectionPanel'
-import { scene as sceneDefaults } from './design/tokens'
-import { usePlayback } from './lib/playback'
-import { useRun } from './lib/useRun'
-import { useVocabField } from './lib/useVocabField'
-import { useVocabTokens } from './lib/useVocabTokens'
+const DesktopApp = lazy(() => import('./DesktopApp.jsx'))
 
-const PANELS = [
-  { id: 'run', label: 'Run', Icon: Play },
-  { id: 'candidates', label: 'Candidates', Icon: ListOrdered },
-  { id: 'selection', label: 'Selection', Icon: Crosshair },
-  { id: 'display', label: 'Display', Icon: SlidersHorizontal },
-  { id: 'legend', label: 'Legend', Icon: Info },
-]
+const UNSUPPORTED_VIEWPORT =
+  '(max-width: 899px), (max-height: 559px), (hover: none) and (pointer: coarse)'
+const REDUCED_MOTION = '(prefers-reduced-motion: reduce)'
 
-const TITLES = {
-  run: 'Run',
-  candidates: 'Candidates',
-  selection: 'Selection',
-  display: 'Display',
-  legend: 'Legend',
-}
-
-/**
- * Rail, one attached panel, the scene, and a floating transport. Nothing on the right.
- *
- * The scene is the ground: closing the panel gives it the full width rather than leaving a gap
- * where chrome used to be.
- */
 export default function App() {
-  const field = useVocabField()
-  const run = useRun()
-  const playback = usePlayback(run.steps.length)
+  const unsupported = useMediaQuery(UNSUPPORTED_VIEWPORT)
+  const reducedMotion = useMediaQuery(REDUCED_MOTION)
 
-  const [panel, setPanel] = useState('candidates')
-  const [collapsed, setCollapsed] = useState(false)
-  const [selected, setSelected] = useState(null)
-  const [hoveredId, setHoveredId] = useState(null)
-  const [maxTokens, setMaxTokens] = useState(60)
-  const [settings, setSettings] = useState({
-    fieldOpacity: sceneDefaults.fieldOpacity,
-    fieldSize: sceneDefaults.fieldPointSize,
-    stride: 1,
-    nucleus: 0.99,
-    follow: true,
-  })
-
-  const vocab = useVocabTokens({ enabled: Boolean(selected) })
-  const step = run.steps[playback.index] ?? null
-
-  // A live run starts playing itself. Generation finishes in about a second and a half, so
-  // without this the visitor presses Run, the answer is already over, and the scene sits on step
-  // one until they discover the transport.
-  const wasGenerating = useRef(false)
-  useEffect(() => {
-    if (run.generating && !wasGenerating.current) {
-      playback.restart()
-      setSelected(null)
-    }
-    if (!run.generating && wasGenerating.current && run.steps.length > 0) {
-      playback.play()
-    }
-    wasGenerating.current = run.generating
-  }, [run.generating, run.steps.length, playback])
-
-  // Selecting something in the scene opens the panel that explains it. Otherwise a click produces
-  // a highlight and no information, which is a dead end.
-  const select = useCallback((next) => {
-    setSelected(next)
-    if (next) setPanel('selection')
-  }, [])
+  if (unsupported) return <DesktopRequired />
 
   return (
-    <div style={shell}>
-      <Rail panels={PANELS} active={panel} onSelect={setPanel} />
-
-      {panel && (
-        <Panel title={TITLES[panel]} onClose={() => setPanel(null)}>
-          {panel === 'run' && <RunPanel run={run} maxTokens={maxTokens} onMaxTokens={setMaxTokens} />}
-          {panel === 'candidates' && (
-            <CandidatesPanel
-              step={step}
-              nucleus={settings.nucleus}
-              hoveredId={hoveredId}
-              selectedId={selected?.id}
-              onHover={setHoveredId}
-              onSelect={setSelected}
-            />
-          )}
-          {panel === 'selection' && (
-            <SelectionPanel selection={selected} step={step} textFor={vocab.textFor} />
-          )}
-          {panel === 'display' && (
-            <DisplayPanel settings={settings} onChange={setSettings} tokenCount={field.count} />
-          )}
-          {panel === 'legend' && <LegendPanel />}
-        </Panel>
-      )}
-
-      <main style={stage}>
-        <h1 className="sr-only">Token Atlas — watch a language model choose each word</h1>
-
-        <Scene
-          field={field}
-          fieldOpacity={settings.fieldOpacity}
-          fieldSize={settings.fieldSize}
-          stride={settings.stride}
-          nucleus={settings.nucleus}
-          follow={settings.follow}
-          step={step}
-          selected={selected}
-          hoveredId={hoveredId}
-          onSelect={select}
-        />
-
-        <ConnectionStatus run={run} />
-
-        {run.steps.length > 0 && (
-          <Transport
-            steps={run.steps}
-            playback={playback}
-            collapsed={collapsed}
-            onToggleCollapse={() => setCollapsed((value) => !value)}
-          />
-        )}
-      </main>
-    </div>
+    <Suspense fallback={<LoadingAtlas />}>
+      <DesktopApp reducedMotion={reducedMotion} />
+    </Suspense>
   )
 }
 
-const shell = { display: 'flex', height: '100%', minHeight: 0, overflow: 'hidden' }
+function useMediaQuery(query) {
+  const [matches, setMatches] = useState(() => window.matchMedia(query).matches)
 
-// `overflow: hidden` is load-bearing, not tidiness. The transport is absolutely positioned inside
-// the stage, and its intrinsic width (a timeline cell floor times however many tokens, plus the
-// controls) can exceed the stage on a narrow viewport. Without clipping, that widens the
-// document's scroll area and pushes the rail off the left edge -- the chrome scrolls away while
-// the scene stays put. Clipped here, the timeline scrolls inside itself instead.
-const stage = { position: 'relative', flex: 1, minWidth: 0, height: '100%', overflow: 'hidden' }
+  useEffect(() => {
+    const media = window.matchMedia(query)
+    const update = () => setMatches(media.matches)
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [query])
+
+  return matches
+}
+
+function DesktopRequired() {
+  return (
+    <MessageFrame>
+      <h1 style={messageHeading}>Token Atlas is built for a computer.</h1>
+      <p style={messageBody}>
+        This is an interactive 3D map of 151,665 tokens. It needs the space and precision of a
+        laptop or desktop browser.
+      </p>
+      <p style={messageNote}>
+        Open this link on a computer with a viewport at least{' '}
+        <span className="data">900 × 560</span> and a mouse or trackpad.
+      </p>
+    </MessageFrame>
+  )
+}
+
+function LoadingAtlas() {
+  return (
+    <MessageFrame>
+      <h1 style={messageHeading}>Token Atlas</h1>
+      <p role="status" style={messageBody}>Loading the interactive atlas…</p>
+    </MessageFrame>
+  )
+}
+
+function MessageFrame({ children }) {
+  return (
+    <main style={messageShell}>
+      <div style={messageContent}>{children}</div>
+    </main>
+  )
+}
+
+const messageShell = {
+  width: '100%',
+  height: '100%',
+  display: 'grid',
+  placeItems: 'center',
+  padding: 'var(--space-lg)',
+  background: 'var(--void)',
+}
+
+const messageContent = {
+  width: 'min(100%, 520px)',
+  padding: 'var(--space-xl) 0',
+  borderTop: '1px solid var(--border-hair)',
+  borderBottom: '1px solid var(--border-hair)',
+}
+
+const messageHeading = {
+  maxWidth: '18ch',
+  margin: 0,
+  color: 'var(--text-primary)',
+  fontSize: 'clamp(24px, 7vw, 34px)',
+  fontWeight: 400,
+  lineHeight: 1.2,
+  letterSpacing: '-0.02em',
+}
+
+const messageBody = {
+  maxWidth: '52ch',
+  margin: 'var(--space-lg) 0 0',
+  color: 'var(--text-secondary)',
+  fontSize: '15px',
+  lineHeight: 1.65,
+}
+
+const messageNote = {
+  maxWidth: '56ch',
+  margin: 'var(--space-md) 0 0',
+  color: 'var(--text-muted)',
+  fontSize: '13px',
+  lineHeight: 1.6,
+}

@@ -16,9 +16,8 @@ const PRESETS = [
  *   offline    no backend reachable, and the scene is playing a committed recording. Said plainly,
  *              because an interface implying a model is running when none is would be the first
  *              faked thing here.
- *   cold       connected, but the model is not in memory yet. A container spends ~27s loading a
- *              gigabyte of weights, measured at M0, and that wait is the single worst moment in
- *              the product. It gets named rather than hidden behind a spinner.
+ *   cold       connected, but the model is not in memory yet. Loading the weights is the single
+ *              worst wait in the product, so it gets named rather than hidden behind a spinner.
  *   generating the model is producing tokens right now.
  */
 export function RunPanel({ run, maxTokens, onMaxTokens }) {
@@ -39,6 +38,7 @@ export function RunPanel({ run, maxTokens, onMaxTokens }) {
         <textarea
           id="prompt"
           rows={3}
+          maxLength={500}
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => {
@@ -52,15 +52,17 @@ export function RunPanel({ run, maxTokens, onMaxTokens }) {
           <label htmlFor="max-tokens" style={{ ...label, marginBottom: 0 }}>Length</label>
           <input
             id="max-tokens" type="range" min={10} max={120} step={5}
+            aria-valuetext={`${maxTokens} tokens`}
             value={maxTokens} onChange={(event) => onMaxTokens(Number(event.target.value))}
-            style={{ flex: 1, accentColor: 'var(--candidate)' }}
+            style={{ flex: 1, height: '28px', accentColor: 'var(--text-secondary)' }}
           />
-          <span className="data" style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
+          <span className="data" style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
             {maxTokens}
           </span>
         </div>
 
-        <button type="submit" disabled={!canRun} style={{ ...button, opacity: canRun ? 1 : 0.5 }}>
+        <button className="text-control" type="submit" disabled={!canRun}
+          style={{ ...button, opacity: canRun ? 1 : 0.5, cursor: canRun ? 'pointer' : 'default' }}>
           {run.generating ? 'Generating…' : 'Run'}
         </button>
       </form>
@@ -71,13 +73,13 @@ export function RunPanel({ run, maxTokens, onMaxTokens }) {
         <span style={label}>Try</span>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
           {PRESETS.map((preset) => (
-            <button key={preset.text} type="button" style={presetButton}
+            <button className="text-control" key={preset.text} type="button" style={presetButton}
               onClick={() => {
                 setDraft(preset.text)
                 if (connected && !run.generating) run.start(preset.text, maxTokens)
               }}>
               <span style={{ color: 'var(--text-secondary)' }}>{preset.text}</span>
-              <span style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10.5px' }}>
+              <span style={{ display: 'block', color: 'var(--text-muted)', fontSize: '12px' }}>
                 {preset.why}
               </span>
             </button>
@@ -86,7 +88,7 @@ export function RunPanel({ run, maxTokens, onMaxTokens }) {
       </div>
 
       {run.done && (
-        <dl style={grid}>
+        <dl aria-live="polite" aria-label="Generation result" style={grid}>
           <dt style={dt}>Answer</dt>
           <dd style={dd} className="token">{run.done.text}</dd>
           <dt style={dt}>Tokens</dt>
@@ -109,20 +111,25 @@ export function RunPanel({ run, maxTokens, onMaxTokens }) {
 
 function Status({ run }) {
   if (run.error) {
-    return <p style={{ ...note, color: 'var(--attention)' }}>{run.error}</p>
+    return (
+      <p role="alert" style={{ ...note, color: 'var(--text-secondary)' }}>
+        <strong style={{ color: 'var(--text-primary)', fontWeight: 500 }}>Run failed.</strong>{' '}
+        {run.error}
+      </p>
+    )
   }
 
   if (run.connection === 'connecting') {
-    return <p style={note}>Connecting to the model…</p>
+    return <p role="status" aria-live="polite" style={note}>Connecting to the model…</p>
   }
 
   if (run.connection === 'waking') {
-    return <p style={note}>Waking the model — the server sleeps when idle. Retrying…</p>
+    return <p role="status" aria-live="polite" style={note}>Waking the model — the server sleeps when idle. Retrying…</p>
   }
 
   if (run.connection === 'offline') {
     return (
-      <p style={note}>
+      <p role="status" aria-live="polite" style={note}>
         <strong style={{ fontWeight: 400, color: 'var(--text-secondary)' }}>No model connected.</strong>{' '}
         The scene is playing a committed recording of a real run — every number in it came from an
         actual forward pass, but it already happened. Start the backend with{' '}
@@ -132,12 +139,12 @@ function Status({ run }) {
   }
 
   if (run.generating) {
-    return <p style={note}>Generating — <span className="data">{run.steps.length}</span> tokens so far.</p>
+    return <p role="status" aria-live="polite" style={note}>Generating — <span className="data">{run.steps.length}</span> tokens so far.</p>
   }
 
   if (run.modelLoaded === false) {
     return (
-      <p style={note}>
+      <p role="status" aria-live="polite" style={note}>
         Connected. The model is not in memory yet — the first run loads 494 million weights. They
         ship with the server rather than being downloaded, so it is quick, and every run after it
         is immediate.
@@ -149,14 +156,14 @@ function Status({ run }) {
   // check has not succeeded, and claiming a loaded model on the strength of an open socket is the
   // kind of small untruth this project does not get to make.
   return (
-    <p style={note}>
+    <p role="status" aria-live="polite" style={note}>
       {run.modelLoaded === true ? 'Connected and loaded.' : 'Connected.'}{' '}
       {run.source === 'fixture' && 'Showing a recording until you run something.'}
     </p>
   )
 }
 
-const label = { display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }
+const label = { display: 'block', fontSize: '12.5px', color: 'var(--text-secondary)', marginBottom: '4px' }
 
 const textarea = {
   width: '100%',
@@ -166,7 +173,7 @@ const textarea = {
   borderRadius: 'var(--radius-sm)',
   padding: 'var(--space-sm)',
   font: 'inherit',
-  fontSize: '12.5px',
+  fontSize: '13px',
   resize: 'vertical',
 }
 
@@ -176,6 +183,7 @@ const button = {
   border: '1px solid var(--border-hair)',
   borderRadius: 'var(--radius-sm)',
   padding: '6px 10px',
+  minHeight: '32px',
   font: 'inherit',
   fontSize: '12.5px',
   cursor: 'pointer',
@@ -185,17 +193,17 @@ const presetButton = {
   background: 'none',
   border: 'none',
   borderRadius: 'var(--radius-sm)',
-  padding: '3px 4px',
+  padding: '5px 4px',
   color: 'var(--text-muted)',
   font: 'inherit',
-  fontSize: '11.5px',
+  fontSize: '12.5px',
   textAlign: 'left',
   cursor: 'pointer',
 }
 
 const grid = {
-  display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px var(--space-md)', margin: 0, fontSize: '12px',
+  display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px var(--space-md)', margin: 0, fontSize: '12.5px',
 }
 const dt = { color: 'var(--text-muted)' }
 const dd = { margin: 0, color: 'var(--text-secondary)', textAlign: 'right', overflowWrap: 'anywhere' }
-const note = { margin: 0, fontSize: '11.5px', lineHeight: 1.55, color: 'var(--text-muted)' }
+const note = { margin: 0, fontSize: '12.5px', lineHeight: 1.55, color: 'var(--text-muted)' }

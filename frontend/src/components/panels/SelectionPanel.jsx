@@ -72,9 +72,9 @@ const grid = {
   gridTemplateColumns: 'auto 1fr',
   gap: '4px var(--space-md)',
   margin: 0,
-  fontSize: '12px',
+  fontSize: '12.5px',
 }
 
 const dt = { color: 'var(--text-muted)' }
 const dd = { margin: 0, color: 'var(--text-secondary)', textAlign: 'right', overflowWrap: 'anywhere' }
-const note = { margin: '4px 0 0', fontSize: '11.5px', lineHeight: 1.55, color: 'var(--text-muted)' }
+const note = { margin: '4px 0 0', fontSize: '12.5px', lineHeight: 1.55, color: 'var(--text-muted)' }

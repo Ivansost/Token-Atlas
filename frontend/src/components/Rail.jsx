@@ -22,6 +22,7 @@ export function Rail({ panels, active, onSelect }) {
             aria-label={label}
             aria-pressed={isActive}
             title={label}
+            className="icon-control"
             style={{ ...railButton, ...(isActive ? railButtonActive : null) }}
           >
             <Icon size={17} strokeWidth={1.6} aria-hidden="true" />
@@ -33,7 +34,7 @@ export function Rail({ panels, active, onSelect }) {
 }
 
 const rail = {
-  width: '48px',
+  width: '40px',
   flex: 'none',
   height: '100%',
   background: 'var(--surface-rail)',
@@ -46,8 +47,8 @@ const rail = {
 }
 
 const railButton = {
-  width: '32px',
-  height: '32px',
+  width: '30px',
+  height: '30px',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',

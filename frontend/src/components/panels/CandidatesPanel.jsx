@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 /**
  * The numbers panel: everything the model considered at this step, ranked, with its real figures.
@@ -9,8 +9,17 @@ import { useEffect, useMemo, useRef } from 'react'
  *
  * It needs no schema change to exist, which was the check at M2 that the event shape was right.
  */
-export function CandidatesPanel({ step, nucleus, hoveredId, selectedId, onHover, onSelect }) {
+export function CandidatesPanel({
+  step,
+  nucleus,
+  hoveredId,
+  selectedId,
+  onHover,
+  onSelect,
+  reducedMotion = false,
+}) {
   const listRef = useRef(null)
+  const [focusedId, setFocusedId] = useState(null)
 
   const { rows, cutoff, mass } = useMemo(() => {
     if (!step) return { rows: [], cutoff: 0, mass: 0 }
@@ -29,10 +38,27 @@ export function CandidatesPanel({ step, nucleus, hoveredId, selectedId, onHover,
   useEffect(() => {
     if (selectedId == null) return
     listRef.current?.querySelector('[data-selected="true"]')
-      ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-  }, [selectedId])
+      ?.scrollIntoView({ block: 'nearest', behavior: reducedMotion ? 'auto' : 'smooth' })
+  }, [selectedId, reducedMotion])
+
+  const moveFocus = (event, index) => {
+    const keys = ['ArrowDown', 'ArrowUp', 'Home', 'End']
+    if (!keys.includes(event.key)) return
+    event.preventDefault()
+
+    const buttons = [...(listRef.current?.querySelectorAll('[data-candidate-row="true"]') ?? [])]
+    let next = index
+    if (event.key === 'ArrowDown') next = Math.min(buttons.length - 1, index + 1)
+    if (event.key === 'ArrowUp') next = Math.max(0, index - 1)
+    if (event.key === 'Home') next = 0
+    if (event.key === 'End') next = buttons.length - 1
+    buttons[next]?.focus()
+  }
 
   if (!step) return <p style={empty}>No step selected.</p>
+
+  const selectedRow = rows.find((row) => row.id === selectedId)
+  const tabStopId = focusedId ?? selectedRow?.id ?? rows[0]?.id
 
   return (
     <>
@@ -52,8 +78,8 @@ export function CandidatesPanel({ step, nucleus, hoveredId, selectedId, onHover,
         </p>
       </div>
 
-      <div ref={listRef} style={list}>
-        {rows.map((row) => {
+      <div ref={listRef} style={list} role="group" aria-label="Ranked candidate tokens">
+        {rows.map((row, index) => {
           const inNucleus = row.rank <= cutoff
           const isChosen = row.id === step.chosen.id
           const isHovered = row.id === hoveredId
@@ -62,31 +88,51 @@ export function CandidatesPanel({ step, nucleus, hoveredId, selectedId, onHover,
             <button
               key={row.id}
               type="button"
+              data-candidate-row="true"
               data-selected={isSelected}
+              aria-pressed={isSelected}
+              tabIndex={row.id === tabStopId ? 0 : -1}
               onMouseEnter={() => onHover?.(row.id)}
               onMouseLeave={() => onHover?.(null)}
-              onClick={() => onSelect?.({ ...row, source: 'candidate', chosen: isChosen })}
+              onFocus={() => {
+                setFocusedId(row.id)
+                onHover?.(row.id)
+              }}
+              onBlur={() => onHover?.(null)}
+              onKeyDown={(event) => moveFocus(event, index)}
+              onClick={() => {
+                setFocusedId(row.id)
+                onSelect?.({ ...row, source: 'candidate', chosen: isChosen })
+              }}
               style={{
                 ...rowStyle,
                 background: isSelected || isHovered ? 'var(--surface-raised)' : 'transparent',
-                opacity: inNucleus ? 1 : 0.45,
               }}
             >
               <span className="data" style={rank}>{row.rank}</span>
               <span className="token" style={{
                 ...tokenText,
-                color: isChosen ? 'var(--chosen)' : 'var(--text-primary)',
+                color: isChosen
+                  ? 'var(--chosen)'
+                  : inNucleus ? 'var(--text-primary)' : 'var(--text-muted)',
               }}>
                 {row.text.replace(/ /g, '·').replace(/\n/g, '⏎') || '·'}
               </span>
-              <span className="data" style={prob}>{row.prob.toFixed(4)}</span>
+              <span className="data" style={{
+                ...prob,
+                color: inNucleus ? 'var(--text-secondary)' : 'var(--text-muted)',
+              }}>
+                {row.prob.toFixed(4)}
+              </span>
               <span style={track}>
                 {/* Square root, matching the node sizing. Linear bars would render everything
                     below rank 3 as an invisible sliver. */}
                 <span style={{
                   ...fill,
                   width: `${Math.max(1.5, Math.sqrt(row.prob) * 100)}%`,
-                  background: isChosen ? 'var(--chosen)' : 'var(--candidate)',
+                  background: isChosen
+                    ? 'var(--chosen)'
+                    : inNucleus ? 'var(--candidate)' : 'var(--field)',
                 }} />
               </span>
             </button>
@@ -108,6 +154,7 @@ const rowStyle = {
   display: 'grid',
   gridTemplateColumns: '22px minmax(0, 1fr) 46px 52px',
   alignItems: 'center',
+  minHeight: '28px',
   gap: 'var(--space-sm)',
   padding: '3px 4px',
   border: 'none',
@@ -117,11 +164,11 @@ const rowStyle = {
   font: 'inherit',
 }
 
-const rank = { color: 'var(--text-muted)', fontSize: '10.5px', textAlign: 'right' }
+const rank = { color: 'var(--text-muted)', fontSize: '12px', textAlign: 'right' }
 const tokenText = { fontSize: '12.5px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
-const prob = { color: 'var(--text-secondary)', fontSize: '11px', textAlign: 'right' }
+const prob = { fontSize: '12px', textAlign: 'right' }
 const track = { height: '3px', borderRadius: '2px', background: 'var(--surface-raised)', overflow: 'hidden' }
 const fill = { display: 'block', height: '100%', borderRadius: '2px' }
 
-const note = { margin: 0, fontSize: '11.5px', lineHeight: 1.5, color: 'var(--text-muted)' }
+const note = { margin: 0, fontSize: '12.5px', lineHeight: 1.55, color: 'var(--text-muted)' }
 const empty = { ...note, margin: 0 }

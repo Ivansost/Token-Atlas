@@ -2,7 +2,7 @@
  * The cold-start banner: the honest answer to "why is nothing happening?"
  *
  * The deploy target scales to zero, so a first visitor commonly arrives at a sleeping container
- * and waits through a boot plus a ~27 second weight load. That wait is the worst moment in the
+ * and waits through a container boot plus a short weight load. That wait is the worst moment in the
  * product, and it happens before anyone has opened a panel — so the explanation has to live on the
  * scene, not inside the Run panel where only a curious visitor would find it.
  *
@@ -53,16 +53,16 @@ const shell = {
   border: '1px solid var(--border-hair)',
   borderRadius: 'var(--radius-lg)',
   color: 'var(--text-secondary)',
-  fontSize: '12.5px',
-  fontWeight: 300,
+  fontSize: '13px',
+  fontWeight: 400,
   letterSpacing: '0.02em',
 }
 
-// Not amber. The Amber Law reserves that for the token the model chose.
+// A neutral status marker. Candidate milk remains reserved for model data.
 const dot = {
   width: '7px',
   height: '7px',
   flex: 'none',
   borderRadius: '50%',
-  background: 'var(--candidate)',
+  background: 'var(--text-secondary)',
 }

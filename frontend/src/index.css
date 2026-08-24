@@ -18,6 +18,10 @@ body,
   margin: 0;
 }
 
+html {
+  color-scheme: dark;
+}
+
 body {
   /* The page ground and the scene ground are the same colour on purpose: the interface has no
      edge, and the chrome floats over a room rather than sitting beside a widget. */
@@ -58,13 +62,66 @@ body {
 }
 
 :focus-visible {
-  outline: 2px solid var(--candidate);
+  /* Focus is a neutral interface state. Candidate milk stays reserved for model data. */
+  outline: 2px solid var(--text-primary);
   outline-offset: 2px;
 }
 
+.icon-control,
+.text-control,
+.timeline-cell {
+  transition: background-color 140ms ease, color 140ms ease, filter 140ms ease;
+}
+
+.icon-control:hover:not(:disabled),
+.text-control:hover:not(:disabled) {
+  background: var(--surface-raised) !important;
+  color: var(--text-primary) !important;
+}
+
+.timeline-cell:hover:not(:disabled) {
+  filter: brightness(1.14);
+}
+
+::selection {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+
+textarea,
+input {
+  caret-color: var(--text-primary);
+}
+
+* {
+  scrollbar-color: var(--border-hair) transparent;
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--border-hair);
+  border: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  background-clip: padding-box;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
+  html {
+    scroll-behavior: auto;
+  }
+
+  .icon-control,
+  .text-control,
+  .timeline-cell {
+    transition: none;
   }
 }

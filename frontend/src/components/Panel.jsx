@@ -15,6 +15,7 @@ export function Panel({ title, children, onClose, footer }) {
       <header style={header}>
         <h2 style={heading}>{title}</h2>
         <button type="button" onClick={onClose} aria-label={`Close ${title.toLowerCase()}`}
+          className="icon-control"
           style={closeButton}>
           <X size={14} strokeWidth={1.6} aria-hidden="true" />
         </button>
@@ -28,7 +29,7 @@ export function Panel({ title, children, onClose, footer }) {
 }
 
 const panel = {
-  width: '288px',
+  width: '280px',
   flex: 'none',
   height: '100%',
   background: 'var(--surface-panel)',
@@ -49,7 +50,7 @@ const header = {
 
 const heading = {
   margin: 0,
-  fontSize: '12.5px',
+  fontSize: '13px',
   fontWeight: 400,
   letterSpacing: '0.03em',
   color: 'var(--text-secondary)',
@@ -57,9 +58,14 @@ const heading = {
 
 const closeButton = {
   display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: '28px',
+  height: '28px',
   background: 'none',
   border: 'none',
-  padding: '2px',
+  borderRadius: 'var(--radius-sm)',
+  padding: 0,
   color: 'var(--text-muted)',
   cursor: 'pointer',
 }
@@ -78,6 +84,6 @@ const footerStyle = {
   flex: 'none',
   padding: 'var(--space-sm) var(--space-md)',
   borderTop: '1px solid var(--border-hair)',
-  fontSize: '11.5px',
+  fontSize: '12px',
   color: 'var(--text-muted)',
 }
