@@ -32,7 +32,7 @@ both. Playback is pausable, scrubbable and speed-controlled. Remaining: deploy i
 | M5 · Live end to end | ✅ done |
 | ~~M6 · Retrieval backend~~ | cut — see PROJECT_PLAN.md |
 | ~~M7 · Retrieval → generation~~ | cut |
-| M8 · Ship | not started — the finish line |
+| M8 · Ship | backend **live on Modal**; frontend deploy remains |
 
 ## Documentation
 
