@@ -17,9 +17,9 @@ a real forward pass through a real model.
 
 ## Status
 
-**Backend complete and working locally.** A real model runs, streams one event per generated token
-over a WebSocket, and every token has a fixed 3D position derived from the model's own embeddings.
-No frontend yet — that starts at M4.
+**Phase 1 works end to end, locally.** Type a prompt, the model runs, and you watch it choose each
+word in 3D — the candidates it weighed, the earlier tokens it attended to, and the exact numbers
+behind both. Playback is pausable, scrubbable and speed-controlled. Retrieval (Phase 2) is next.
 
 | Milestone | State |
 |---|---|
@@ -30,7 +30,7 @@ No frontend yet — that starts at M4.
 | M3 · Projection artifact | ✅ done — UMAP, 77.7% preservation |
 | M4.1 · Scene, field, live layer, playback | ✅ done |
 | M4.2 · Icon rail, panels, numbers panel, cross-highlighting | ✅ done |
-| M5 · Phase 1 complete (deployable) | not started |
+| M5 · Phase 1 complete (deployable) | ✅ done — live end to end |
 | M6 · Retrieval backend | not started |
 | M7 · Retrieval → generation transition | not started |
 | M8 · Ship | not started |

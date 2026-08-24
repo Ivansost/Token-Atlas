@@ -25,7 +25,11 @@ from .model import SYSTEM_PROMPT, get_model
 from .projection import lookup as pos3d
 
 MAX_NEW_TOKENS = 80          # editorial, not technical -- generation runs at ~38 tok/s
-TOP_K = 40                   # candidates displayed per step
+# Candidates carried per step. 200, not 40, decided by measurement at M4: 40 covers 99.65% of the
+# distribution and 200 covers 99.91%, while 1000 was rejected because by that depth the
+# probabilities round to zero at the precision we transmit -- it would put ~800 tokens on screen
+# implying the model considered things it gave nothing to. 200 costs ~18 KB per step.
+TOP_K = 200
 ATTENTION_TOP = 5            # THE RULE: last layer, head-averaged, top 5
 
 

@@ -1,5 +1,5 @@
 import { Crosshair, Info, ListOrdered, Play, SlidersHorizontal } from 'lucide-react'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { Panel } from './components/Panel'
 import { Rail } from './components/Rail'
@@ -12,7 +12,7 @@ import { RunPanel } from './components/panels/RunPanel'
 import { SelectionPanel } from './components/panels/SelectionPanel'
 import { scene as sceneDefaults } from './design/tokens'
 import { usePlayback } from './lib/playback'
-import { useSteps } from './lib/useSteps'
+import { useRun } from './lib/useRun'
 import { useVocabField } from './lib/useVocabField'
 import { useVocabTokens } from './lib/useVocabTokens'
 
@@ -40,13 +40,14 @@ const TITLES = {
  */
 export default function App() {
   const field = useVocabField()
-  const run = useSteps()
+  const run = useRun()
   const playback = usePlayback(run.steps.length)
 
   const [panel, setPanel] = useState('candidates')
   const [collapsed, setCollapsed] = useState(false)
   const [selected, setSelected] = useState(null)
   const [hoveredId, setHoveredId] = useState(null)
+  const [maxTokens, setMaxTokens] = useState(60)
   const [settings, setSettings] = useState({
     fieldOpacity: sceneDefaults.fieldOpacity,
     fieldSize: sceneDefaults.fieldPointSize,
@@ -57,6 +58,21 @@ export default function App() {
 
   const vocab = useVocabTokens({ enabled: Boolean(selected) })
   const step = run.steps[playback.index] ?? null
+
+  // A live run starts playing itself. Generation finishes in about a second and a half, so
+  // without this the visitor presses Run, the answer is already over, and the scene sits on step
+  // one until they discover the transport.
+  const wasGenerating = useRef(false)
+  useEffect(() => {
+    if (run.generating && !wasGenerating.current) {
+      playback.restart()
+      setSelected(null)
+    }
+    if (!run.generating && wasGenerating.current && run.steps.length > 0) {
+      playback.play()
+    }
+    wasGenerating.current = run.generating
+  }, [run.generating, run.steps.length, playback])
 
   // Selecting something in the scene opens the panel that explains it. Otherwise a click produces
   // a highlight and no information, which is a dead end.
@@ -71,7 +87,7 @@ export default function App() {
 
       {panel && (
         <Panel title={TITLES[panel]} onClose={() => setPanel(null)}>
-          {panel === 'run' && <RunPanel prompt={run.prompt} done={run.done} />}
+          {panel === 'run' && <RunPanel run={run} maxTokens={maxTokens} onMaxTokens={setMaxTokens} />}
           {panel === 'candidates' && (
             <CandidatesPanel
               step={step}

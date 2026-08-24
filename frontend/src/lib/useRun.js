@@ -1,0 +1,124 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+
+import fixture from '../fixtures/steps.sample.json'
+
+/**
+ * A run: either live from the model, or the committed recording.
+ *
+ * This replaces useSteps and is the ONLY file M5 needed to change. Everything downstream reads
+ * `steps` and renders `steps[index]`, exactly as it did against the fixture -- which was the whole
+ * point of building the frontend against a frozen schema first. If anything else had needed
+ * changing here, that would have been the bug.
+ *
+ * The socket stays open across runs. Events are appended to `steps` as they arrive; the playback
+ * controller walks its own index through them on its own clock. At ~32 tokens/second the backend
+ * finishes an answer in about a second and a half, so without that separation the run would be
+ * over before a human registered it.
+ *
+ * FALLBACK, and it is labelled: with no backend reachable the app serves the committed fixture
+ * rather than an empty room. That recording is itself real -- it came out of the same model
+ * through run_local.py -- but it is a recording, and `source` says so plainly so the interface can
+ * never imply a model is running when one is not.
+ */
+
+const API = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+const WS_URL = `${API.replace(/^http/, 'ws')}/ws`
+
+const fixtureSteps = fixture.filter((event) => event.type === 'step')
+const fixtureDone = fixture.find((event) => event.type === 'done') ?? null
+
+function promptFrom(steps) {
+  // The prompt is not a field on the wire. It is recoverable from the context, which flags every
+  // position the chat template added; what is left is exactly what the visitor typed.
+  return (
+    steps[0]?.context
+      .filter((position) => !position.is_template)
+      .map((position) => position.text)
+      .join('') ?? ''
+  )
+}
+
+export function useRun() {
+  const socket = useRef(null)
+  const [connection, setConnection] = useState('connecting')  // connecting | live | offline
+  const [steps, setSteps] = useState(fixtureSteps)
+  const [done, setDone] = useState(fixtureDone)
+  const [error, setError] = useState(null)
+  const [generating, setGenerating] = useState(false)
+  const [modelLoaded, setModelLoaded] = useState(null)
+  // Whether what is on screen came from the socket this session, rather than inferring it from
+  // connection state -- being connected is not the same as having run anything.
+  const [isLive, setIsLive] = useState(false)
+
+  // Is the model in memory yet? A cold container spends ~27s loading a gigabyte of weights before
+  // it can answer anything, and the interface should say so rather than appear broken.
+  useEffect(() => {
+    let cancelled = false
+    fetch(`${API}/health`)
+      .then((res) => res.json())
+      .then((health) => !cancelled && setModelLoaded(Boolean(health.loaded)))
+      .catch(() => !cancelled && setModelLoaded(null))
+    return () => { cancelled = true }
+  }, [])
+
+  useEffect(() => {
+    let ws
+    try {
+      ws = new WebSocket(WS_URL)
+    } catch {
+      setConnection('offline')
+      return undefined
+    }
+
+    ws.onopen = () => setConnection('live')
+    ws.onclose = () => setConnection('offline')
+    ws.onerror = () => setConnection('offline')
+
+    ws.onmessage = (message) => {
+      const event = JSON.parse(message.data)
+      if (event.type === 'step') {
+        setSteps((current) => [...current, event])
+      } else if (event.type === 'done') {
+        setDone(event)
+        setGenerating(false)
+        setModelLoaded(true)
+      } else if (event.type === 'error') {
+        setError(event.message)
+        setGenerating(false)
+      }
+    }
+
+    socket.current = ws
+    return () => ws.close()
+  }, [])
+
+  const start = useCallback((prompt, maxTokens = 60) => {
+    const ws = socket.current
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      setError('Not connected to the model.')
+      return false
+    }
+    setSteps([])          // a new run replaces the old one; the timeline is one answer, not a log
+    setDone(null)
+    setIsLive(true)
+    setError(null)
+    setGenerating(true)
+    ws.send(JSON.stringify({ prompt, max_tokens: maxTokens }))
+    return true
+  }, [])
+
+  return useMemo(
+    () => ({
+      steps,
+      done,
+      error,
+      generating,
+      connection,
+      modelLoaded,
+      source: isLive ? 'live' : 'fixture',
+      prompt: promptFrom(steps),
+      start,
+    }),
+    [steps, done, error, generating, connection, modelLoaded, isLive, start],
+  )
+}
