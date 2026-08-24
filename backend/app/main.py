@@ -16,6 +16,8 @@ that makes the run watchable at all.
 """
 
 import asyncio
+import os
+import time
 from typing import Any, Iterator, Optional
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -28,13 +30,33 @@ from .model import MODEL_ID, is_loaded
 MAX_PROMPT_CHARS = 500
 MAX_TOKENS_CEILING = 120
 
+# --- limits, because this endpoint runs a model for anyone who asks -------------------------
+#
+# A public URL that performs inference on demand is the one genuinely abusable thing here. There
+# is no login and no cost ceiling on the host, so an unthrottled endpoint lets one visitor pin the
+# CPU indefinitely and, on a metered host, spend real money.
+#
+# One generation at a time, process-wide. The container has one model in one process; running two
+# at once does not double throughput, it halves both and doubles the latency everyone sees.
+MAX_CONCURRENT_RUNS = 1
+# How many may wait behind the one running. Beyond this, say so instead of queueing silently --
+# a visitor staring at nothing cannot tell a queue from a crash.
+MAX_QUEUED_RUNS = 3
+# Minimum gap between runs on a single connection. Generous for a human clicking Run, useless for
+# a script.
+MIN_SECONDS_BETWEEN_RUNS = 1.5
+
+_slot = asyncio.Semaphore(MAX_CONCURRENT_RUNS)
+_waiting = 0
+
 app = FastAPI(title="AI Visualizer")
 
 # The Vite dev server runs on a different port, so the browser treats it as cross-origin.
-# Tightened to the deployed frontend origin at M8.
+# ALLOWED_ORIGINS is set to the deployed frontend at M8; localhost stays for development.
+_origins = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=_origins + ["http://localhost:5173", "http://127.0.0.1:5173"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -43,7 +65,12 @@ app.add_middleware(
 @app.get("/health")
 def health() -> dict[str, Any]:
     """Lets the frontend show an honest loading state during the ~27s cold start."""
-    return {"ok": True, "model": MODEL_ID, "loaded": is_loaded()}
+    return {
+        "ok": True,
+        "model": MODEL_ID,
+        "loaded": is_loaded(),
+        "busy": _waiting > 0,
+    }
 
 
 def _next(gen: Iterator[dict[str, Any]]) -> Optional[dict[str, Any]]:
@@ -54,6 +81,7 @@ def _next(gen: Iterator[dict[str, Any]]) -> Optional[dict[str, Any]]:
 @app.websocket("/ws")
 async def ws_generate(ws: WebSocket) -> None:
     await ws.accept()
+    last_run = 0.0
     try:
         while True:
             request = await ws.receive_json()
@@ -70,14 +98,33 @@ async def ws_generate(ws: WebSocket) -> None:
 
             max_tokens = min(int(request.get("max_tokens", MAX_NEW_TOKENS)), MAX_TOKENS_CEILING)
 
-            # Generation is synchronous CPU work. Stepping it in a worker thread keeps the event
-            # loop free, so a second connection is not blocked by the first one's run.
-            gen = generate_steps(prompt, max_new_tokens=max_tokens)
-            while True:
-                event = await asyncio.to_thread(_next, gen)
-                if event is None:
-                    break
-                await ws.send_json(event)
+            now = time.monotonic()
+            if now - last_run < MIN_SECONDS_BETWEEN_RUNS:
+                await ws.send_json(events.error_event("Slow down a moment, then try again."))
+                continue
+            last_run = now
+
+            global _waiting
+            if _waiting >= MAX_QUEUED_RUNS:
+                await ws.send_json(events.error_event(
+                    "The model is busy with other visitors. Try again in a few seconds."
+                ))
+                continue
+
+            _waiting += 1
+            try:
+                async with _slot:
+                    # Generation is synchronous CPU work. Stepping it in a worker thread keeps the
+                    # event loop free, so health checks and other sockets stay responsive while
+                    # this one generates.
+                    gen = generate_steps(prompt, max_new_tokens=max_tokens)
+                    while True:
+                        event = await asyncio.to_thread(_next, gen)
+                        if event is None:
+                            break
+                        await ws.send_json(event)
+            finally:
+                _waiting -= 1
 
     except WebSocketDisconnect:
         pass

@@ -1,9 +1,11 @@
 import { useState } from 'react'
 
+// Chosen from MODEL_NOTES.md, where every prompt was tested against this model. Each shows
+// something different, and the third is here precisely because the model gets it wrong.
 const PRESETS = [
-  'What is the capital of France?',
-  'Explain gravity in one sentence.',
-  'Why is the sky blue?',
+  { text: 'What is the capital of France?', why: 'a real decision — 11 tokens hold 99%' },
+  { text: 'What is 17 times 23?', why: 'digits are separate tokens, and it still gets it right' },
+  { text: 'What type is Mudkip?', why: 'confidently invents an answer' },
 ]
 
 /**
@@ -20,7 +22,7 @@ const PRESETS = [
  *   generating the model is producing tokens right now.
  */
 export function RunPanel({ run, maxTokens, onMaxTokens }) {
-  const [draft, setDraft] = useState(run.prompt || PRESETS[0])
+  const [draft, setDraft] = useState(run.prompt || PRESETS[0].text)
 
   const connected = run.connection === 'live'
   const canRun = connected && !run.generating && draft.trim().length > 0
@@ -69,9 +71,15 @@ export function RunPanel({ run, maxTokens, onMaxTokens }) {
         <span style={label}>Try</span>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
           {PRESETS.map((preset) => (
-            <button key={preset} type="button" style={presetButton}
-              onClick={() => { setDraft(preset); if (connected && !run.generating) run.start(preset, maxTokens) }}>
-              {preset}
+            <button key={preset.text} type="button" style={presetButton}
+              onClick={() => {
+                setDraft(preset.text)
+                if (connected && !run.generating) run.start(preset.text, maxTokens)
+              }}>
+              <span style={{ color: 'var(--text-secondary)' }}>{preset.text}</span>
+              <span style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10.5px' }}>
+                {preset.why}
+              </span>
             </button>
           ))}
         </div>
@@ -108,6 +116,10 @@ function Status({ run }) {
     return <p style={note}>Connecting to the model…</p>
   }
 
+  if (run.connection === 'waking') {
+    return <p style={note}>Waking the model — the server sleeps when idle. Retrying…</p>
+  }
+
   if (run.connection === 'offline') {
     return (
       <p style={note}>
@@ -126,8 +138,9 @@ function Status({ run }) {
   if (run.modelLoaded === false) {
     return (
       <p style={note}>
-        Connected. The model is not in memory yet — the first run loads 494 million weights, which
-        takes around 27 seconds. After that every run is immediate.
+        Connected. The model is not in memory yet — the first run loads 494 million weights. They
+        ship with the server rather than being downloaded, so it is quick, and every run after it
+        is immediate.
       </p>
     )
   }

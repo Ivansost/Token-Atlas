@@ -40,7 +40,7 @@ function promptFrom(steps) {
 
 export function useRun() {
   const socket = useRef(null)
-  const [connection, setConnection] = useState('connecting')  // connecting | live | offline
+  const [connection, setConnection] = useState('connecting')  // connecting | waking | offline | live
   const [steps, setSteps] = useState(fixtureSteps)
   const [done, setDone] = useState(fixtureDone)
   const [error, setError] = useState(null)
@@ -61,35 +61,80 @@ export function useRun() {
     return () => { cancelled = true }
   }, [])
 
+  // RECONNECT WITH BACKOFF -- required, not defensive.
+  //
+  // The deploy target scales to zero, so the normal first visit finds the container asleep and the
+  // very first socket attempt fails while it boots. A single attempt would leave the app
+  // permanently 'offline' until someone thought to reload, which is exactly the visitor who has
+  // already left. Retrying makes the cold start a wait instead of a dead end.
   useEffect(() => {
     let ws
-    try {
-      ws = new WebSocket(WS_URL)
-    } catch {
-      setConnection('offline')
-      return undefined
-    }
+    let timer
+    let attempt = 0
+    let closed = false
 
-    ws.onopen = () => setConnection('live')
-    ws.onclose = () => setConnection('offline')
-    ws.onerror = () => setConnection('offline')
+    // After this many failures, stop saying "waking" and say "offline" instead -- while still
+    // retrying. A sleeping cloud container answers within a few attempts; a laptop with no backend
+    // running never will, and telling that visitor to start the server beats an eternal spinner.
+    const WAKING_ATTEMPTS = 5
 
-    ws.onmessage = (message) => {
-      const event = JSON.parse(message.data)
-      if (event.type === 'step') {
-        setSteps((current) => [...current, event])
-      } else if (event.type === 'done') {
-        setDone(event)
-        setGenerating(false)
-        setModelLoaded(true)
-      } else if (event.type === 'error') {
-        setError(event.message)
-        setGenerating(false)
+    const connect = () => {
+      if (closed) return
+      if (attempt === 0) setConnection('connecting')
+      else if (attempt < WAKING_ATTEMPTS) setConnection('waking')
+      else setConnection('offline')
+
+      try {
+        ws = new WebSocket(WS_URL)
+      } catch {
+        schedule()
+        return
       }
+
+      ws.onopen = () => {
+        attempt = 0
+        setConnection('live')
+      }
+
+      ws.onclose = () => {
+        setGenerating(false)
+        schedule()
+      }
+
+      ws.onerror = () => {}   // onclose always follows; retrying twice would halve the backoff
+
+      ws.onmessage = (message) => {
+        const event = JSON.parse(message.data)
+        if (event.type === 'step') {
+          setSteps((current) => [...current, event])
+        } else if (event.type === 'done') {
+          setDone(event)
+          setGenerating(false)
+          setModelLoaded(true)
+        } else if (event.type === 'error') {
+          setError(event.message)
+          setGenerating(false)
+        }
+      }
+
+      socket.current = ws
     }
 
-    socket.current = ws
-    return () => ws.close()
+    const schedule = () => {
+      if (closed) return
+      // 1s, 2s, 4s, then every 8s. A cold container takes tens of seconds; hammering it while it
+      // boots helps nobody.
+      const delay = Math.min(1000 * 2 ** attempt, 8000)
+      attempt += 1
+      timer = setTimeout(connect, delay)
+    }
+
+    connect()
+    return () => {
+      closed = true
+      clearTimeout(timer)
+      ws?.close()
+    }
   }, [])
 
   const start = useCallback((prompt, maxTokens = 60) => {

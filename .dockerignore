@@ -1,0 +1,22 @@
+# The build context is the repo root, but the image only needs backend/.
+# Everything below either bloats the context or would be wrong inside the container.
+
+frontend/
+node_modules/
+.git/
+.venv/
+.agents/
+.claude/
+.codex/
+.impeccable/
+
+__pycache__/
+*.py[cod]
+
+# The macOS virtualenv and its wheels must never leak in -- the image installs Linux CPU wheels.
+**/.venv/
+
+*.md
+!backend/**/*.md
+
+.DS_Store

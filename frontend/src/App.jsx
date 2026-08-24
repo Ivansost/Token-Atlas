@@ -1,6 +1,7 @@
 import { Crosshair, Info, ListOrdered, Play, SlidersHorizontal } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { ConnectionStatus } from './components/ConnectionStatus'
 import { Panel } from './components/Panel'
 import { Rail } from './components/Rail'
 import { Scene } from './components/Scene'
@@ -123,6 +124,8 @@ export default function App() {
           hoveredId={hoveredId}
           onSelect={select}
         />
+
+        <ConnectionStatus run={run} />
 
         {run.steps.length > 0 && (
           <Transport
