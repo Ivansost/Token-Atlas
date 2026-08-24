@@ -50,6 +50,7 @@ export default function DesktopApp({ reducedMotion = false }) {
     fieldOpacity: sceneDefaults.fieldOpacity,
     fieldSize: sceneDefaults.fieldPointSize,
     stride: 1,
+    tint: 0.7,
     nucleus: 0.99,
     follow: !reducedMotion,
   }))
@@ -122,6 +123,7 @@ export default function DesktopApp({ reducedMotion = false }) {
           fieldOpacity={settings.fieldOpacity}
           fieldSize={settings.fieldSize}
           stride={settings.stride}
+          tint={settings.tint}
           nucleus={settings.nucleus}
           follow={settings.follow && !reducedMotion}
           step={step}

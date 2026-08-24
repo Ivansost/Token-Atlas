@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react'
 import * as THREE from 'three'
 
-import { toHex } from '../design/color'
+import { toHex, toRGB } from '../design/color'
 import { theme } from '../design/tokens'
 
 /**
@@ -58,7 +58,7 @@ function makeDiscTexture() {
  * screen before the model has done anything spends the one visual language the live layer needs.
  * The field is ambient texture, not information to read.
  */
-export function VocabField({ positions, count, opacity = 0.55, size = 2.4, stride = 1, onSelect }) {
+export function VocabField({ positions, count, opacity = 0.55, size = 2.4, stride = 1, tint = 0.7, onSelect }) {
   const materialRef = useRef()
   const disc = useMemo(makeDiscTexture, [])
 
@@ -80,14 +80,70 @@ export function VocabField({ positions, count, opacity = 0.55, size = 2.4, strid
     return { drawn: out, ids: index }
   }, [positions, count, stride])
 
+  /**
+   * COLOUR BY POSITION.
+   *
+   * Hue is a direct function of where a token sits in the projection: the angle it makes around
+   * the centre. Nothing is clustered and no category is invented -- neighbouring tokens simply get
+   * neighbouring hues, which is enough to make the regions the projection already has visible.
+   * The honest sentence is "hue is location", and it is exactly true.
+   *
+   * Two constraints. The amber band (45-95) is skipped by construction, because amber means "the
+   * model chose this" and may not leak into ambient scenery. And chroma stays low: this is the
+   * field, which exists to be looked past, so it may have structure without competing with the
+   * forty lit points in front of it.
+   *
+   * Hues are quantised into buckets so the OKLCH conversion runs ~70 times rather than 151,665.
+   */
+  const colors = useMemo(() => {
+    if (tint <= 0) return null
+
+    const RESERVED_START = 45
+    const RESERVED_SIZE = 50
+    const BUCKETS = 72
+    const usable = 360 - RESERVED_SIZE
+
+    // Two bands of lightness, picked by height, so the cloud has vertical structure instead of
+    // reading as one flat colour wheel. Deeper and more saturated than looks right in a swatch:
+    // these are 2-pixel semi-transparent dots on black, and both size and alpha dilute colour
+    // hard. Authored for how it lands on screen, not for how it reads in isolation.
+    const LEVELS = [0.5, 0.66]
+    const palette = LEVELS.map((lightness) =>
+      Array.from({ length: BUCKETS }, (_, i) => {
+        let hue = (i * usable) / BUCKETS
+        if (hue >= RESERVED_START) hue += RESERVED_SIZE
+        return toRGB(`oklch(${lightness} ${(0.17 * tint).toFixed(3)} ${hue.toFixed(1)})`)
+      }),
+    )
+
+    const base = toRGB(theme.color.field)
+    const n = drawn.length / 3
+    const out = new Float32Array(n * 3)
+
+    for (let i = 0; i < n; i += 1) {
+      const x = drawn[i * 3]
+      const y = drawn[i * 3 + 1]
+      const z = drawn[i * 3 + 2]
+      const angle = Math.atan2(z, x) + Math.PI              // 0..2pi
+      const bucket = Math.min(BUCKETS - 1, Math.floor((angle / (2 * Math.PI)) * BUCKETS))
+      const rgb = palette[y > 0 ? 1 : 0][bucket]
+      // Blend toward the neutral field colour so `tint` genuinely fades to the old look at 0.
+      out[i * 3] = base[0] + (rgb[0] - base[0]) * tint
+      out[i * 3 + 1] = base[1] + (rgb[1] - base[1]) * tint
+      out[i * 3 + 2] = base[2] + (rgb[2] - base[2]) * tint
+    }
+    return out
+  }, [drawn, tint])
+
   const geometry = useMemo(() => {
     const geo = new THREE.BufferGeometry()
     geo.setAttribute('position', new THREE.BufferAttribute(drawn, 3))
+    if (colors) geo.setAttribute('color', new THREE.BufferAttribute(colors, 3))
     // The projection is centred on its median already; a sphere spares Three.js the bounding
     // pass over 151k points on every frustum check.
     geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 120)
     return geo
-  }, [drawn])
+  }, [drawn, colors])
 
   if (!positions || count === 0) return null
 
@@ -111,7 +167,8 @@ export function VocabField({ positions, count, opacity = 0.55, size = 2.4, strid
     >
       <pointsMaterial
         ref={materialRef}
-        color={toHex(theme.color.field)}
+        color={colors ? 0xffffff : toHex(theme.color.field)}
+        vertexColors={Boolean(colors)}
         map={disc}
         alphaMap={disc}
         size={size}

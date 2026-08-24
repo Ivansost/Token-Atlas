@@ -26,6 +26,12 @@ export function DisplayPanel({ settings, onChange, tokenCount, reducedMotion = f
           format={(v) => (v === 1 ? 'all' : `1 in ${v}`)} />
       </Field>
 
+      <Field htmlFor="tint" label="Colour" hint="Hue is a direct function of position — neighbouring tokens get neighbouring hues, so the regions the projection already has become visible. No categories are invented; at zero the field returns to neutral grey.">
+        <Range id="tint" min={0} max={1} step={0.05}
+          value={settings.tint} onChange={set('tint')}
+          format={(v) => (v === 0 ? 'off' : `${Math.round(v * 100)}%`)} />
+      </Field>
+
       <Field
         htmlFor="nucleus"
         label="Coverage"

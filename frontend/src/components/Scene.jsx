@@ -21,7 +21,7 @@ import { VocabField } from './VocabField'
  * scene and nothing that needs one: points are unlit material, so the far edge of the vocabulary
  * dissolves into voidDeep instead of ending at a visible boundary.
  */
-export function Scene({ field, fieldOpacity, fieldSize, step, follow, nucleus, stride, selected, hoveredId, onSelect, steps = [], index = 0, drift = true, bloom = false }) {
+export function Scene({ field, fieldOpacity, fieldSize, step, follow, nucleus, stride, tint, selected, hoveredId, onSelect, steps = [], index = 0, drift = true, bloom = false }) {
   return (
     <Canvas
       role="img"
@@ -44,6 +44,7 @@ export function Scene({ field, fieldOpacity, fieldSize, step, follow, nucleus, s
           opacity={fieldOpacity}
           size={fieldSize ?? sceneDefaults.fieldPointSize}
           stride={stride}
+          tint={tint}
           onSelect={onSelect}
         />
       )}
