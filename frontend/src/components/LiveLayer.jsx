@@ -154,6 +154,8 @@ export function LiveLayer({ step, selectedId, hoveredId, onSelect, nucleus = 0.9
           transparent
           opacity={0.5 + 0.5 * (link.weight / maxWeight)}
           depthWrite={false}
+          depthTest={false}
+          renderOrder={10}
         />
       ))}
 
@@ -188,6 +190,8 @@ export function LiveLayer({ step, selectedId, hoveredId, onSelect, nucleus = 0.9
           tints={reticle.tints}
           alphas={reticle.alphas}
           ring
+          depthTest={false}
+          renderOrder={12}
         />
       )}
 

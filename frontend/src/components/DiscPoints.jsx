@@ -74,7 +74,7 @@ const ringFragmentShader = /* glsl */ `
   }
 `
 
-export function DiscPoints({ positions, sizes, tints, alphas, depthWrite = false, additive = false, ring = false }) {
+export function DiscPoints({ positions, sizes, tints, alphas, depthWrite = false, additive = false, ring = false, depthTest = true, renderOrder = 0 }) {
   const geometry = useMemo(() => {
     const geo = new THREE.BufferGeometry()
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
@@ -96,9 +96,14 @@ export function DiscPoints({ positions, sizes, tints, alphas, depthWrite = false
         // themselves stay on normal blending: additive there sums the dense core toward white and
         // destroys exactly the separability the constant point size exists to protect.
         blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
+        // Markers may opt out of depth testing. Now that the field writes depth, a token deep
+        // inside the cloud is genuinely hidden by the tokens in front of it -- correct for data,
+        // wrong for a marker whose entire job is to be findable. The reticle and the route are
+        // annotations on the scene, not objects in it, so they draw over everything.
+        depthTest,
       }),
-    [depthWrite, additive, ring],
+    [depthWrite, additive, ring, depthTest],
   )
 
-  return <points geometry={geometry} material={material} frustumCulled={false} />
+  return <points geometry={geometry} material={material} renderOrder={renderOrder} frustumCulled={false} />
 }

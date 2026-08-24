@@ -1,36 +1,9 @@
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 
-import { toHex, toRGB } from '../design/color'
+import { toRGB } from '../design/color'
+import { makeFieldMaterial, sizesFromIds } from './fieldMaterial'
 import { theme } from '../design/tokens'
-
-/**
- * A crisp disc, generated once at runtime.
- *
- * A default WebGL point is a hard square, which reads as pixelation. The first attempt replaced
- * it with a soft radial gradient, which was worse: every token became a smudge and nothing looked
- * like a distinct object. This is a solid disc with a one-pixel antialiased edge -- a dot, not a
- * glow. Density comes from how many dots are there, never from how blurry each one is.
- */
-function makeDiscTexture() {
-  const size = 64
-  const canvas = document.createElement('canvas')
-  canvas.width = canvas.height = size
-  const ctx = canvas.getContext('2d')
-
-  const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2)
-  gradient.addColorStop(0, 'rgba(255,255,255,1)')
-  gradient.addColorStop(0.86, 'rgba(255,255,255,1)')   // solid to the edge
-  gradient.addColorStop(1, 'rgba(255,255,255,0)')      // then a thin AA falloff
-  ctx.fillStyle = gradient
-  ctx.fillRect(0, 0, size, size)
-
-  const texture = new THREE.CanvasTexture(canvas)
-  texture.colorSpace = THREE.SRGBColorSpace
-  texture.generateMipmaps = false
-  texture.minFilter = THREE.LinearFilter
-  return texture
-}
 
 /**
  * The vocabulary field: every token the model knows, at its real position.
@@ -59,8 +32,6 @@ function makeDiscTexture() {
  * The field is ambient texture, not information to read.
  */
 export function VocabField({ positions, raw, count, opacity = 0.55, size = 2.4, stride = 1, tint = 0.7, onSelect }) {
-  const materialRef = useRef()
-  const disc = useMemo(makeDiscTexture, [])
 
   // `stride` thins the field UNIFORMLY -- every nth token, never a filtered subset. A visitor
   // dialling it down sees a sparser sample of the same space with the same shape, rather than a
@@ -98,7 +69,8 @@ export function VocabField({ positions, raw, count, opacity = 0.55, size = 2.4, 
    * Hues are quantised into buckets so the OKLCH conversion runs ~144 times rather than 151,665.
    */
   const colors = useMemo(() => {
-    if (tint <= 0) return null
+    // Never null: the shader always reads aColor, so tint 0 means 'the neutral field colour',
+    // not 'no attribute'.
 
     const { start, span, chroma, levels } = theme.fieldArc
     const BUCKETS = 72
@@ -139,21 +111,36 @@ export function VocabField({ positions, raw, count, opacity = 0.55, size = 2.4, 
     return out
   }, [drawn, tint])
 
+  // Size is a real attribute now, so the field is a population of differently-sized nodes rather
+  // than a uniform spray. See fieldMaterial.js for where the number comes from.
+  const pointSizes = useMemo(
+    () => sizesFromIds(ids, drawn.length / 3, count),
+    [ids, drawn, count],
+  )
+
+  const material = useMemo(makeFieldMaterial, [])
+  useEffect(() => {
+    material.uniforms.uSize.value = size
+    material.uniforms.uOpacity.value = opacity
+  }, [material, size, opacity])
+
   const geometry = useMemo(() => {
     const geo = new THREE.BufferGeometry()
     geo.setAttribute('position', new THREE.BufferAttribute(drawn, 3))
-    if (colors) geo.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+    geo.setAttribute('aSize', new THREE.BufferAttribute(pointSizes, 1))
+    if (colors) geo.setAttribute('aColor', new THREE.BufferAttribute(colors, 3))
     // The projection is centred on its median already; a sphere spares Three.js the bounding
     // pass over 151k points on every frustum check.
     geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 400)
     return geo
-  }, [drawn, colors])
+  }, [drawn, colors, pointSizes])
 
   if (!positions || count === 0) return null
 
   return (
     <points
       geometry={geometry}
+      material={material}
       frustumCulled={false}
       onClick={(event) => {
         event.stopPropagation()
@@ -174,35 +161,6 @@ export function VocabField({ positions, raw, count, opacity = 0.55, size = 2.4, 
         })
       }}
     >
-      <pointsMaterial
-        ref={materialRef}
-        color={colors ? 0xffffff : toHex(theme.color.field)}
-        vertexColors={Boolean(colors)}
-        map={disc}
-        alphaMap={disc}
-        size={size}
-        // OFF, deliberately, and this is the single most important line in the file.
-        //
-        // With size attenuation on, points grow as the camera approaches, so flying into the
-        // dense core scales the dots with you and it stays one solid blob at every zoom level --
-        // you can never resolve individual tokens. Constant screen-space size means zooming
-        // spreads the cloud apart while each dot stays the same few pixels, so a cluster
-        // separates into its members. It is how a point-cloud atlas is meant to behave.
-        //
-        // Depth is still legible: fog does that job, and it does it without destroying
-        // separability.
-        sizeAttenuation={false}
-        transparent
-        opacity={opacity}
-        // Discards the square corners so points are genuinely round rather than round-looking.
-        alphaTest={0.28}
-        // Normal blending, not additive. Additive sums overlapping dots toward white, which in a
-        // core holding 57% of the vocabulary produces one flat saturated mass -- the opposite of
-        // resolving individual tokens.
-        blending={THREE.NormalBlending}
-        depthWrite={false}
-        fog
-      />
     </points>
   )
 }

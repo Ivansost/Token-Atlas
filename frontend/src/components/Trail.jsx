@@ -108,6 +108,8 @@ export function Trail({ steps, index, maxTrail = MAX_TRAIL, project = (p) => p }
         opacity={0.13}
         blending={THREE.AdditiveBlending}
         depthWrite={false}
+        depthTest={false}
+        renderOrder={9}
       />
       <Line
         points={points}
@@ -116,12 +118,16 @@ export function Trail({ steps, index, maxTrail = MAX_TRAIL, project = (p) => p }
         transparent
         opacity={0.95}
         depthWrite={false}
+        depthTest={false}
+        renderOrder={10}
       />
       <DiscPoints
         positions={marks.positions}
         sizes={marks.sizes}
         tints={marks.tints}
         alphas={marks.alphas}
+        depthTest={false}
+        renderOrder={11}
       />
     </group>
   )

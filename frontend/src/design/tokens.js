@@ -61,7 +61,7 @@ export const theme = {
   // upper half of the atlas washed out to white. Authored for how it lands, not how it reads.
   //
   // `levels` is an ELEVATION ramp, not two arbitrary bands. See VocabField for why.
-  fieldArc: { start: 176, span: 128, chroma: 0.155, levels: [0.34, 0.42, 0.50, 0.58, 0.66] },
+  fieldArc: { start: 176, span: 128, chroma: 0.155, levels: [0.46, 0.53, 0.60, 0.67, 0.74] },
 
   font: {
     ui: '"IBM Plex Sans", system-ui, sans-serif',
@@ -89,8 +89,11 @@ export const scene = {
   // and the old density fogged the whole far half of it into the void.
   fogDensity: 0.0022,     // exponential; the far edge of the vocabulary dissolves rather than ending
   cameraStart: [0, 10, 210],
-  fieldPointSize: 2.0,    // PIXELS, not world units -- size attenuation is off so zoom separates
-  fieldOpacity: 0.5,      // user-controllable; the field must recede behind the live layer
+  // Bigger and more solid than before. The old 2.0px flat dot read as dust; with the atlas
+  // de-clumped there is room for dots large enough to look like objects. Each is multiplied by a
+  // per-token factor -- see fieldMaterial.js -- so this is the size of an average token.
+  fieldPointSize: 3.8,    // PIXELS, not world units -- size attenuation is off so zoom separates
+  fieldOpacity: 0.80,     // a fade toward the void, NOT alpha: field dots stay opaque and occlude
   // Radial de-clumping. 0 is the raw projection; see lib/atlasSpace.js for what the transform
   // preserves and what it trades. Default is high because the raw distribution -- 57% of the
   // vocabulary inside 1% of the volume -- simply cannot be read whole.

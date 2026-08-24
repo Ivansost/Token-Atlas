@@ -35,10 +35,23 @@ export function LegendPanel() {
 
       <Entry swatch={fieldGradient} title="The vocabulary">
         All 151,665 tokens the model knows, at fixed positions from a UMAP projection of its own
-        embeddings. Ambient, deliberately dim, and clickable. Its colour is pure geometry — hue is
-        the token's bearing from the centre, lightness is its height — so it encodes no language,
-        script, token type or probability.
+        embeddings. Colour is pure geometry — hue is the token's bearing from the centre,
+        lightness is its height — so it encodes no language, script or probability. Every token is
+        clickable, including ones the model never considered.
       </Entry>
+
+      <div style={rule}>
+        <h3 style={h3}>Why some nodes are bigger</h3>
+        <p style={body}>
+          Node size is the token's own id, which in a BPE vocabulary is the order the tokenizer
+          learned it — so bigger means more common. It is a real ordering, not decoration: ids
+          256–269 are <span className="token">in</span>, <span className="token">er</span>,{' '}
+          <span className="token">on</span>, <span className="token">re</span>,{' '}
+          <span className="token">at</span>, <span className="token">st</span>, while ids near
+          150,000 are lone Devanagari, Georgian and archaic Greek glyphs. The ramp is logarithmic
+          because word frequency is roughly Zipfian.
+        </p>
+      </div>
 
       <div style={rule}>
         <h3 style={h3}>Warm means decision</h3>
