@@ -14,6 +14,26 @@ be played, paused, sped up, slowed down, and scrubbed backwards.
 **Nothing on screen is faked.** Every probability, attention weight and coordinate comes from a
 real forward pass, and the legend states the limits as plainly as the features.
 
+### How the atlas is drawn
+
+Two encodings are display choices rather than raw data, and both are stated in the app's own
+legend as well as here.
+
+**Spread.** The UMAP projection puts **57% of the vocabulary inside 1.2% of the volume it
+occupies** — measured, not estimated — so at any zoom that shows the whole atlas the core is one
+clot. A radial histogram equalisation evens that density out. It preserves every token's direction
+exactly and its rank by distance from the centre exactly; what it trades is absolute distance, the
+same bargain the interface already makes drawing probability on a square-root scale. It is a
+slider with a real zero that restores the untouched projection, and the Selection panel always
+reports raw coordinates.
+
+**Colour and size.** Field colour is pure geometry — hue is a token's bearing from the centre,
+lightness is its height — so it encodes no language, script or probability. The vocabulary is
+confined to a cool arc so that every warm colour on screen belongs to the live decision. Node size
+is the token's own id, which in a BPE vocabulary is the order the tokenizer learned it, so bigger
+means more common: ids 256–269 are `in`, `er`, `on`, `re`, `at`, `st`, while ids near 150,000 are
+lone Devanagari, Georgian and archaic Greek glyphs.
+
 ## Status
 
 **Works end to end.** Type a prompt, the model runs, and you watch it choose each word in 3D — the
