@@ -94,6 +94,6 @@ def error_event(message: str) -> dict[str, Any]:
     return {"type": "error", "message": message}
 
 
-# Phase 2 adds a `retrieval` event here at M6: query, ranked chunks with score/rank/source/used,
-# and the assembled prompt preview. Deliberately not sketched yet -- it gets designed against a
-# real corpus rather than guessed at now.
+# There is no retrieval event and there will not be one. The project's second phase -- document
+# search feeding this same engine -- was cut after generation was working end to end, so this
+# schema is complete rather than partial. See PROJECT_PLAN.md, "Architecture".

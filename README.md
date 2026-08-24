@@ -1,25 +1,24 @@
 # AI Visualizer
 
-> Watch a real local model search its evidence and generate an answer, one token at a time.
-> Pause, rotate, and rewind the entire run.
+> Watch a real language model choose every word it writes, inside a map of everything it knows.
+> Pause, rotate, and rewind any decision.
 
-A website that makes an AI's word-by-word thinking visible. A real open-weight model
+A website that makes a language model's word-by-word thinking visible. A real open-weight model
 (`Qwen/Qwen2.5-0.5B-Instruct`) runs a genuine forward pass for every word it writes. Each step
-renders two ways at once: a rotatable 3D cloud of the tokens it *considered*, sized by how likely
-it thought each one was, with lines back to the earlier tokens its attention weighted most heavily
-— and a panel beside it showing the actual numbers, linked so highlighting one highlights the
-other. The whole run is recorded as it happens, so it can be played, paused, sped up, slowed down,
-and scrubbed backwards. Before it writes, it searches a real document corpus, shown as a galaxy of
-chunks that light up and rank themselves, with the winners feeding into the same generation engine.
+renders two ways at once: lit inside a rotatable 3D map of all **151,665 tokens the model knows**,
+positioned by a UMAP projection of its own embeddings — and a panel beside it showing the actual
+numbers, the two linked so highlighting one highlights the other. Click any token, including ones
+the model never considered, and it names itself. The whole run is recorded as it happens, so it can
+be played, paused, sped up, slowed down, and scrubbed backwards.
 
-**Nothing on screen is faked.** Every probability, attention weight, and retrieval score comes from
-a real forward pass through a real model.
+**Nothing on screen is faked.** Every probability, attention weight and coordinate comes from a
+real forward pass, and the legend states the limits as plainly as the features.
 
 ## Status
 
-**Phase 1 works end to end, locally.** Type a prompt, the model runs, and you watch it choose each
-word in 3D — the candidates it weighed, the earlier tokens it attended to, and the exact numbers
-behind both. Playback is pausable, scrubbable and speed-controlled. Retrieval (Phase 2) is next.
+**Works end to end, locally.** Type a prompt, the model runs, and you watch it choose each word in
+3D — the candidates it weighed, the earlier tokens it attended to, and the exact numbers behind
+both. Playback is pausable, scrubbable and speed-controlled. Remaining: deploy it.
 
 | Milestone | State |
 |---|---|
@@ -30,10 +29,10 @@ behind both. Playback is pausable, scrubbable and speed-controlled. Retrieval (P
 | M3 · Projection artifact | ✅ done — UMAP, 77.7% preservation |
 | M4.1 · Scene, field, live layer, playback | ✅ done |
 | M4.2 · Icon rail, panels, numbers panel, cross-highlighting | ✅ done |
-| M5 · Phase 1 complete (deployable) | ✅ done — live end to end |
-| M6 · Retrieval backend | not started |
-| M7 · Retrieval → generation transition | not started |
-| M8 · Ship | not started |
+| M5 · Live end to end | ✅ done |
+| ~~M6 · Retrieval backend~~ | cut — see PROJECT_PLAN.md |
+| ~~M7 · Retrieval → generation~~ | cut |
+| M8 · Ship | not started — the finish line |
 
 ## Documentation
 

@@ -14,10 +14,10 @@ Things worth probing while you're in here, and writing down in MODEL_NOTES.md:
   - open-ended chat              ("tell me about yourself")               -> gets vague fast
   - anything needing arithmetic  ("what is 17 * 23?")                     -> often wrong
   - anything needing recent facts                                         -> it has none
-  - a question about a document it can't have seen                        -> the case for Phase 2
+  - a question about a niche named entity                                 -> confidently invented
 
-That last one is the whole argument for retrieval, in one prompt. Find a question it fails
-closed-book and remember it -- it becomes the demo prompt for the finished site.
+That last one is worth seeing: the model does not refuse, it fabricates fluently. Good to know
+before choosing demo prompts for the finished site.
 
 NOTE: this loads with the default (fast) attention backend, not the eager one the product needs,
 because nothing here reads attention weights. Use speed_test.py for an honest speed comparison.
