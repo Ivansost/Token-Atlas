@@ -37,7 +37,7 @@ app = modal.App("ai-visualizer", image=image)
 
 @app.function(
     # Measured, not guessed: ~690 MB peak after a 115-token run with a long prompt, so 1 GB has
-    # real headroom. See MODEL_NOTES.md.
+    # real headroom, measured in-container after a long run.
     memory=1024,
     cpu=2.0,
     # Keep a container alive this long after the last request. Longer means fewer cold starts for

@@ -1,7 +1,7 @@
 /**
  * Legend: what the scene means, and what it does not.
  *
- * This is content, not fine print, and DESIGN.md forbids polishing it away for a cleaner look.
+ * This is content, not fine print, and it may not be polished away for a cleaner look.
  * The project's whole claim is that nothing on screen is faked; a claim like that is only worth
  * anything if the limits are stated as plainly as the features.
  *

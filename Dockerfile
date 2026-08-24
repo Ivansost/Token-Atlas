@@ -5,7 +5,7 @@
 #   docker run --rm -p 8000:8000 aiviz
 #
 # Memory: measured at ~690 MB peak after a 115-token run with a long prompt, comfortably inside a
-# 1 GB limit (see MODEL_NOTES.md). 1 GB works, 2 GB has headroom, 512 MB does not -- and it would
+# 1 GB limit measured in-container. 1 GB works, 2 GB has headroom, 512 MB does not -- and it would
 # fail on the first prompt rather than at startup, which is a nastier failure than it sounds.
 
 FROM python:3.13-slim

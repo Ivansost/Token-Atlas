@@ -9,7 +9,7 @@ find out what a 494M-parameter model is actually like before building a website 
 
 Commands inside the REPL:  /reset  clears the conversation   /quit  exits
 
-Things worth probing while you're in here, and writing down in MODEL_NOTES.md:
+Things worth probing while you're in here, and writing down somewhere:
   - short factual questions      ("what is the capital of France?")       -> usually fine
   - open-ended chat              ("tell me about yourself")               -> gets vague fast
   - anything needing arithmetic  ("what is 17 * 23?")                     -> often wrong

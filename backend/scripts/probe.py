@@ -10,7 +10,7 @@ smoothed, or made up. When this prints, the data feed the website will render ex
     python backend/scripts/probe.py --top 20
 
 --chat wraps the prompt in Qwen's chat template, which is what the real product sends. It adds
-~29 scaffolding tokens the user never typed -- see MODEL_NOTES.md.
+~29 scaffolding tokens the user never typed -- see the notes in this file.
 """
 
 import argparse

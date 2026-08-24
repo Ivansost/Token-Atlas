@@ -16,31 +16,20 @@ real forward pass, and the legend states the limits as plainly as the features.
 
 ## Status
 
-**Works end to end, locally.** Type a prompt, the model runs, and you watch it choose each word in
-3D — the candidates it weighed, the earlier tokens it attended to, and the exact numbers behind
-both. Playback is pausable, scrubbable and speed-controlled. Remaining: deploy it.
+**Works end to end.** Type a prompt, the model runs, and you watch it choose each word in 3D — the
+candidates it weighed, the earlier tokens it attended to, and the exact numbers behind both.
+Playback is pausable, scrubbable and speed-controlled.
 
-| Milestone | State |
-|---|---|
-| S0 · Scaffold | ✅ done |
-| M0 · Meet the model (hands-on + attention gate) | ✅ done — gate passed |
-| M1 · Proof of real numbers | ✅ done |
-| M2 · Backend skeleton, schema freeze | ✅ done — schema frozen |
-| M3 · Projection artifact | ✅ done — UMAP, 77.7% preservation |
-| M4.1 · Scene, field, live layer, playback | ✅ done |
-| M4.2 · Icon rail, panels, numbers panel, cross-highlighting | ✅ done |
-| M5 · Live end to end | ✅ done |
-| ~~M6 · Retrieval backend~~ | cut — see PROJECT_PLAN.md |
-| ~~M7 · Retrieval → generation~~ | cut |
-| M8 · Ship | backend **live on Modal**; frontend deploy remains |
+The backend runs on Modal. Measured against the deployment: **15 s** cold container boot, **~1.2 s**
+to load the weights (they ship inside the image rather than being downloaded), and ~690 MB peak
+memory after a 115-token run — comfortably inside a 1 GB container.
 
-## Documentation
+### Scope, stated plainly
 
-| File | What it is |
-|---|---|
-| [`PROJECT_PLAN.md`](PROJECT_PLAN.md) | **The file we build against.** Milestones, locked decisions, tech stack, data contract, risk register |
-| [`PROJECT_IDEA.md`](PROJECT_IDEA.md) | Background: the idea, competitive research, decision history, learning curriculum, technical appendices |
-| `MODEL_NOTES.md` | Written at M0: measured speed, model quirks, prompts that work |
+This visualizes **generation**. An earlier plan committed to a second phase — document retrieval
+feeding the same engine — and it was cut once generation worked end to end, on the grounds that a
+finished thing beats a broader half-built one. There is no retrieval code, no vector store, and no
+retrieval fields in the event schema; the schema is complete rather than partial.
 
 ## Running it locally
 

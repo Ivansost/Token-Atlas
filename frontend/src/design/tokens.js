@@ -1,7 +1,7 @@
 /**
- * Design tokens. The single source of truth for colour, type, and spacing.
+ * Design tokens: the single source of truth for colour, type, and spacing.
  *
- * These mirror the frontmatter in DESIGN.md. Nothing in this app may hardcode a colour: the
+ * Nothing in this app may hardcode a colour. The
  * scene reads these values for its Three.js materials, and `applyTokens` publishes the same
  * values as CSS custom properties so the chrome uses them too. One definition, two consumers.
  *

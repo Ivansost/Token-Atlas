@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-// Chosen from MODEL_NOTES.md, where every prompt was tested against this model. Each shows
+// Every one of these was tested against this model before being offered. Each shows
 // something different, and the third is here precisely because the model gets it wrong.
 const PRESETS = [
   { text: 'What is the capital of France?', why: 'a real decision — 11 tokens hold 99%' },

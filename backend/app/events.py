@@ -96,4 +96,4 @@ def error_event(message: str) -> dict[str, Any]:
 
 # There is no retrieval event and there will not be one. The project's second phase -- document
 # search feeding this same engine -- was cut after generation was working end to end, so this
-# schema is complete rather than partial. See PROJECT_PLAN.md, "Architecture".
+# schema is complete rather than partial.

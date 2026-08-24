@@ -28,3 +28,14 @@ backend/data/chunk_embeddings.*
 .claude/skills/
 .codex/
 .impeccable/
+
+# Internal working documents. Deliberately not in the public repo: the plan, the research, the
+# measurements and the product/design records are how the project was built, not what it is.
+# They live on disk and in the backup bundle, and were removed from history rather than merely
+# ignored -- ignoring a tracked file hides it from future commits, not from the ones already made.
+PROJECT_PLAN.md
+PROJECT_IDEA.md
+MODEL_NOTES.md
+PRODUCT.md
+DESIGN.md
+.claude/

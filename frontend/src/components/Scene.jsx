@@ -10,7 +10,7 @@ import { VocabField } from './VocabField'
 /**
  * The room.
  *
- * Per DESIGN.md the page ground and the scene ground are the same colour on purpose: the
+ * The page ground and the scene ground are the same colour on purpose: the
  * interface has no edge, and the chrome floats over a space rather than sitting beside a widget.
  *
  * Depth is carried by exponential fog and by scale -- never by shadows. There is no light in this
