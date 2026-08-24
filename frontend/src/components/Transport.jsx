@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 
 import { SPEEDS } from '../lib/playback'
 
@@ -29,6 +29,29 @@ export function Transport({ steps, playback, collapsed, onToggleCollapse }) {
     current?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
   }, [index])
 
+  /**
+   * Tokens grouped into the words they spell.
+   *
+   * The model does not emit words, it emits tokens: `vacation` arrives as `·vac` then `ation`, two
+   * separate decisions with two separate distributions. Merging them would be a lie about how the
+   * model works, and this project's whole claim is that it does not lie about that.
+   *
+   * So the grouping is visual only. A token starts a new word when it begins with a space; one
+   * that does not is a continuation and butts against its predecessor. Punctuation attaches to the
+   * word before it, the way it does in writing. Every fragment stays its own cell, its own click
+   * target, and its own step.
+   */
+  const words = useMemo(() => {
+    const groups = []
+    steps.forEach((step, i) => {
+      const text = step.chosen.text
+      const startsWord = groups.length === 0 || text.startsWith(' ') || text.startsWith('\n')
+      if (startsWord) groups.push({ start: i, members: [] })
+      groups[groups.length - 1].members.push({ step, i })
+    })
+    return groups
+  }, [steps])
+
   if (collapsed) {
     return (
       <div style={{ ...shell, padding: '6px 10px', gap: 'var(--space-sm)' }}>
@@ -51,22 +74,43 @@ export function Transport({ steps, playback, collapsed, onToggleCollapse }) {
       </IconButton>
 
       <div ref={strip} style={timelineStrip} role="group" aria-label="Generated tokens">
-        {steps.map((step, i) => {
-          const state = i === index ? 'current' : i < index ? 'past' : 'ahead'
-          return (
-            <button
-              key={step.step}
-              type="button"
-              onClick={() => seek(i)}
-              data-current={i === index}
-              title={`step ${i + 1} — ${step.chosen.text} (${step.chosen.prob.toFixed(4)})`}
-              className="token"
-              style={{ ...cell, ...cellState[state] }}
-            >
-              {step.chosen.text.replace(/ /g, '·').replace(/\n/g, '⏎') || '·'}
-            </button>
-          )
-        })}
+        {words.map((word) => (
+          <span key={word.start} style={wordGroup}>
+            {word.members.map(({ step, i }, position) => {
+              const state = i === index ? 'current' : i < index ? 'past' : 'ahead'
+              const first = position === 0
+              const last = position === word.members.length - 1
+              return (
+                <button
+                  key={step.step}
+                  type="button"
+                  onClick={() => seek(i)}
+                  data-current={i === index}
+                  title={`step ${i + 1} — ${JSON.stringify(step.chosen.text)} (${step.chosen.prob.toFixed(4)})`}
+                  className="token"
+                  style={{
+                    ...cell,
+                    ...cellState[state],
+                    // Fragments of one word butt together into a single word-shaped block: only
+                    // the outer edges are rounded, and there is no gap between members.
+                    borderTopLeftRadius: first ? 'var(--radius-sm)' : 0,
+                    borderBottomLeftRadius: first ? 'var(--radius-sm)' : 0,
+                    borderTopRightRadius: last ? 'var(--radius-sm)' : 0,
+                    borderBottomRightRadius: last ? 'var(--radius-sm)' : 0,
+                    paddingLeft: first ? '7px' : '1px',
+                    paddingRight: last ? '7px' : '1px',
+                  }}
+                >
+                  {/* The leading space is dropped here and carried by the gap between words
+                      instead. Elsewhere it stays visible as `·`, because in the candidate list the
+                      difference between `cat` and `·cat` is two different tokens with two
+                      different probabilities. Here the strip's job is to read as the sentence. */}
+                  {step.chosen.text.replace(/^ /, '').replace(/\n/g, '⏎') || '·'}
+                </button>
+              )
+            })}
+          </span>
+        ))}
       </div>
 
       <select
@@ -119,13 +163,14 @@ const timelineStrip = {
   minWidth: 0,
 }
 
+const wordGroup = { display: 'flex', flex: '0 0 auto' }
+
 const cell = {
-  // A floor, not a fraction: cells that shrink to fit turn every token into "P..." and the strip
-  // stops being readable as a sentence. Past the floor the strip scrolls instead.
-  flex: '0 1 auto',
-  minWidth: '46px',
+  // No shrinking and no width floor now that fragments are grouped: a word is exactly as wide as
+  // its letters, so the strip reads as a sentence rather than a row of equal boxes. Past the
+  // available width it scrolls.
+  flex: '0 0 auto',
   border: 'none',
-  borderRadius: 'var(--radius-sm)',
   padding: '4px 7px',
   fontSize: '11.5px',
   lineHeight: 1.3,
