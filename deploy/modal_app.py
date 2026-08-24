@@ -26,7 +26,7 @@ import modal
 # blocks it unless that origin is allowed. WebSockets are not subject to CORS, so the symptom is
 # specific and confusing: generation works, but the interface cannot tell whether the model is
 # loaded. Localhost is always permitted, so development needs nothing here.
-FRONTEND_ORIGIN = ""   # e.g. "https://ai-visualizer.vercel.app"
+FRONTEND_ORIGIN = "https://token-atlas-project.vercel.app"
 
 # The same Dockerfile that `docker build -t aiviz .` uses. Modal builds it for linux/amd64 and
 # ignores EXPOSE/CMD, running its own server against the ASGI app below.
