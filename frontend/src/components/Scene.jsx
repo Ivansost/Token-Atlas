@@ -1,10 +1,14 @@
 import { OrbitControls } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
+import { Bloom, EffectComposer } from '@react-three/postprocessing'
+
+const BLOOM_ENABLED = false
 
 import { toHex } from '../design/color'
 import { scene as sceneDefaults, theme } from '../design/tokens'
 import { FollowChosen } from './FollowChosen'
 import { LiveLayer } from './LiveLayer'
+import { Trail } from './Trail'
 import { VocabField } from './VocabField'
 
 /**
@@ -17,7 +21,7 @@ import { VocabField } from './VocabField'
  * scene and nothing that needs one: points are unlit material, so the far edge of the vocabulary
  * dissolves into voidDeep instead of ending at a visible boundary.
  */
-export function Scene({ field, fieldOpacity, fieldSize, step, follow, nucleus, stride, selected, hoveredId, onSelect }) {
+export function Scene({ field, fieldOpacity, fieldSize, step, follow, nucleus, stride, selected, hoveredId, onSelect, steps = [], index = 0, drift = true }) {
   return (
     <Canvas
       role="img"
@@ -44,8 +48,23 @@ export function Scene({ field, fieldOpacity, fieldSize, step, follow, nucleus, s
         />
       )}
 
+      <Trail steps={steps} index={index} />
+
       <LiveLayer step={step} nucleus={nucleus} selectedId={selected?.id} hoveredId={hoveredId} onSelect={onSelect} />
       <FollowChosen position={step?.chosen?.pos3d} enabled={follow} />
+
+      {/*
+        Bloom. The one purely visual effect in the project, and the only thing on screen that adds
+        nothing to the data. It earns its place by making dense regions bleed light, so brightness
+        reads as density -- and by giving the chosen token the presence a 12-pixel disc cannot have
+        on its own. Threshold is high so only genuinely bright accumulations glow; lower values lit
+        the entire field and flattened everything into one pale wash.
+      */}
+      {BLOOM_ENABLED && (
+        <EffectComposer>
+          <Bloom intensity={0.7} luminanceThreshold={0.5} luminanceSmoothing={0.4} mipmapBlur />
+        </EffectComposer>
+      )}
 
       {/* The camera glides; nothing snaps. Damping is the motion grammar of this world. */}
       <OrbitControls
@@ -62,6 +81,11 @@ export function Scene({ field, fieldOpacity, fieldSize, step, follow, nucleus, s
         // Zoom slows as you close in, so the last few units into a cluster are controllable
         // instead of overshooting straight through it.
         zoomToCursor
+        // A slow constant orbit when nobody is driving. A still 3D scene reads as a screenshot;
+        // the parallax of drifting past 151,665 points is what tells the eye it has depth at all.
+        // It stops the moment the visitor touches the controls, and never fights an input.
+        autoRotate={drift}
+        autoRotateSpeed={0.12}
       />
     </Canvas>
   )

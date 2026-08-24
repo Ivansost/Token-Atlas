@@ -128,6 +128,9 @@ export default function DesktopApp({ reducedMotion = false }) {
           selected={selected}
           hoveredId={hoveredId}
           onSelect={select}
+          steps={run.steps}
+          index={playback.index}
+          drift={!playback.playing}
         />
 
         <ConnectionStatus run={run} />

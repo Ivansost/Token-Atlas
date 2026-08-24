@@ -65,6 +65,8 @@ export function LiveLayer({ step, selectedId, hoveredId, onSelect, nucleus = 0.9
 
     const positions = new Float32Array(positioned.length * 3)
     const sizes = new Float32Array(positioned.length)
+    const halos = new Float32Array(positioned.length)
+    const haloAlphas = new Float32Array(positioned.length)
     const tints = new Float32Array(positioned.length * 3)
     const alphas = new Float32Array(positioned.length)
 
@@ -80,9 +82,14 @@ export function LiveLayer({ step, selectedId, hoveredId, onSelect, nucleus = 0.9
       sizes[i] = (base + (isChosen ? CHOSEN_BONUS : 0)) * (isSelected ? 1.6 : 1)
       tints.set(rgb, i * 3)
       alphas[i] = isChosen ? 1 : inNucleus ? 0.45 + 0.5 * Math.sqrt(candidate.prob) : 0.28
+
+      // The halo scales with confidence, so a token the model was sure of glows harder. Outside
+      // the nucleus there is no halo at all -- those tokens were barely considered.
+      halos[i] = inNucleus ? sizes[i] * 3.2 : 0
+      haloAlphas[i] = inNucleus ? (isChosen ? 0.16 : 0.07 * Math.sqrt(candidate.prob)) : 0
     })
 
-    return { positions, sizes, tints, alphas, items: positioned, cutoff }
+    return { positions, sizes, halos, haloAlphas, tints, alphas, items: positioned, cutoff }
   }, [step, selectedId, hoveredId, nucleus])
 
   const links = useMemo(() => {
@@ -110,6 +117,22 @@ export function LiveLayer({ step, selectedId, hoveredId, onSelect, nucleus = 0.9
           depthWrite={false}
         />
       ))}
+
+      {/*
+        HALO PASS -- glow without post-processing.
+        Bloom via EffectComposer was tried and produced a black canvas: on this R3F/three/
+        postprocessing combination it takes over the render loop and outputs nothing. Rather than
+        chase library versions, the glow is drawn directly: the same points again, several times
+        larger, faint, and additively blended, so bright tokens bleed light into the space around
+        them. It affects only the live layer, so the field keeps its crisp separable dots.
+      */}
+      <DiscPoints
+        positions={cloud.positions}
+        sizes={cloud.halos}
+        tints={cloud.tints}
+        alphas={cloud.haloAlphas}
+        additive
+      />
 
       <DiscPoints
         positions={cloud.positions}

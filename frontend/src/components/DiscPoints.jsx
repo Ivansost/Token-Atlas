@@ -47,7 +47,7 @@ const fragmentShader = /* glsl */ `
   }
 `
 
-export function DiscPoints({ positions, sizes, tints, alphas, depthWrite = false }) {
+export function DiscPoints({ positions, sizes, tints, alphas, depthWrite = false, additive = false }) {
   const geometry = useMemo(() => {
     const geo = new THREE.BufferGeometry()
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
@@ -65,8 +65,12 @@ export function DiscPoints({ positions, sizes, tints, alphas, depthWrite = false
         fragmentShader,
         transparent: true,
         depthWrite,
+        // Additive is used for the halo pass only, where overlapping light SHOULD sum. The dots
+        // themselves stay on normal blending: additive there sums the dense core toward white and
+        // destroys exactly the separability the constant point size exists to protect.
+        blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
       }),
-    [depthWrite],
+    [depthWrite, additive],
   )
 
   return <points geometry={geometry} material={material} frustumCulled={false} />
