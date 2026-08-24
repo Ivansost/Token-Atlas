@@ -39,7 +39,9 @@ COPY backend/ ./
 RUN python -c "from app.model import get_model; get_model()" \
  && python -c "from app.projection import is_available; assert is_available(), 'projection artifact missing'"
 
-EXPOSE 8000
+# No EXPOSE: it is informational in Docker (`-p` works without it) and Modal lists it as an
+# unsupported instruction, so leaving it out lets this one file serve both the local run and the
+# Modal build.
 
-# $PORT because most hosts inject one; 8000 locally.
+# $PORT because most hosts inject one; 8000 locally. Modal ignores CMD and runs its own server.
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

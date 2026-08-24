@@ -86,6 +86,30 @@ peaks at ~690 MB of memory after a 115-token run, and runs inside a **1 GB** con
 load is ~1.2 s because nothing is downloaded at boot. Generation is roughly 7 tok/s in a
 container versus 32 natively.
 
+### Deploying the backend to Modal
+
+Modal was chosen for measured reasons: $30/month of free credits against a run cost of roughly
+**$0.00005**, per-second billing, scale-to-zero, and confirmed WebSocket support. The trade is a
+cold start when nothing has run recently, which the frontend handles by retrying and saying so.
+
+```bash
+pip install modal
+modal token new                        # one-time browser login
+modal deploy deploy/modal_app.py
+```
+
+It builds the same Dockerfile used above and prints a public URL. Nothing in the service is
+Modal-specific — [`deploy/modal_app.py`](deploy/modal_app.py) is the only file that mentions it, so
+switching hosts means deleting that file, not rewriting anything.
+
+Then point the frontend at it and set the backend's allowed origin:
+
+```bash
+cd frontend && VITE_API_URL=https://<your-modal-url> npm run build
+```
+
+### Deploying the frontend
+
 Frontend goes anywhere static. Set `VITE_API_URL` to the backend's public URL — the WebSocket URL
 is derived from it, so an `https://` value becomes `wss://` automatically, which matters because a
 deployed HTTPS page cannot open a plain `ws://` socket.
