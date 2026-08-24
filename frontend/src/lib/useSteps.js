@@ -22,6 +22,14 @@ export function useSteps() {
   return useMemo(() => {
     const steps = fixture.filter((event) => event.type === 'step')
     const done = fixture.find((event) => event.type === 'done') ?? null
-    return { status: 'ready', steps, done, source: 'fixture' }
+
+    // The prompt is not a separate field on the wire -- it is recoverable from the context, which
+    // flags every position the chat template added. What is left is exactly what the visitor typed.
+    const prompt = steps[0]?.context
+      .filter((position) => !position.is_template)
+      .map((position) => position.text)
+      .join('') ?? ''
+
+    return { status: 'ready', steps, done, prompt, source: 'fixture' }
   }, [])
 }

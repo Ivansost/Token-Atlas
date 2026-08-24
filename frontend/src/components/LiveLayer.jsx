@@ -33,7 +33,7 @@ const CHOSEN_BONUS = 4
 // them probability, but not claimed as part of the decision.
 const OUTSIDE_SIZE = 2.8
 
-export function LiveLayer({ step, selectedId, onSelect, nucleus = 0.99 }) {
+export function LiveLayer({ step, selectedId, hoveredId, onSelect, nucleus = 0.99 }) {
   const attentionColor = toHex(theme.color.attention)
 
   const cloud = useMemo(() => {
@@ -70,7 +70,7 @@ export function LiveLayer({ step, selectedId, onSelect, nucleus = 0.99 }) {
 
     positioned.forEach((candidate, i) => {
       const isChosen = candidate.id === step.chosen.id
-      const isSelected = candidate.id === selectedId
+      const isSelected = candidate.id === selectedId || candidate.id === hoveredId
       const inNucleus = i < cutoff
 
       const rgb = isChosen ? chosenRGB : inNucleus ? candidateRGB : fieldRGB
@@ -83,7 +83,7 @@ export function LiveLayer({ step, selectedId, onSelect, nucleus = 0.99 }) {
     })
 
     return { positions, sizes, tints, alphas, items: positioned, cutoff }
-  }, [step, selectedId, nucleus])
+  }, [step, selectedId, hoveredId, nucleus])
 
   const links = useMemo(() => {
     const from = step?.chosen?.pos3d

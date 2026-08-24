@@ -1,215 +1,131 @@
-import { useState } from 'react'
+import { Crosshair, Info, ListOrdered, Play, SlidersHorizontal } from 'lucide-react'
+import { useCallback, useState } from 'react'
 
+import { Panel } from './components/Panel'
+import { Rail } from './components/Rail'
 import { Scene } from './components/Scene'
 import { Transport } from './components/Transport'
+import { CandidatesPanel } from './components/panels/CandidatesPanel'
+import { DisplayPanel } from './components/panels/DisplayPanel'
+import { LegendPanel } from './components/panels/LegendPanel'
+import { RunPanel } from './components/panels/RunPanel'
+import { SelectionPanel } from './components/panels/SelectionPanel'
+import { scene as sceneDefaults } from './design/tokens'
 import { usePlayback } from './lib/playback'
 import { useSteps } from './lib/useSteps'
 import { useVocabField } from './lib/useVocabField'
 import { useVocabTokens } from './lib/useVocabTokens'
-import { scene as sceneDefaults } from './design/tokens'
+
+const PANELS = [
+  { id: 'run', label: 'Run', Icon: Play },
+  { id: 'candidates', label: 'Candidates', Icon: ListOrdered },
+  { id: 'selection', label: 'Selection', Icon: Crosshair },
+  { id: 'display', label: 'Display', Icon: SlidersHorizontal },
+  { id: 'legend', label: 'Legend', Icon: Info },
+]
+
+const TITLES = {
+  run: 'Run',
+  candidates: 'Candidates',
+  selection: 'Selection',
+  display: 'Display',
+  legend: 'Legend',
+}
 
 /**
- * M4.1: the room, the field, one decision at a time, and playback.
+ * Rail, one attached panel, the scene, and a floating transport. Nothing on the right.
  *
- * The icon rail and its attached panels arrive at M4.2, and the display controls below move into
- * the Display panel when it exists. They are provisional, and deliberately in the top-left rather
- * than the right: nothing lives on the right in this layout.
+ * The scene is the ground: closing the panel gives it the full width rather than leaving a gap
+ * where chrome used to be.
  */
 export default function App() {
   const field = useVocabField()
   const run = useSteps()
   const playback = usePlayback(run.steps.length)
 
-  const [fieldOpacity, setFieldOpacity] = useState(sceneDefaults.fieldOpacity)
-  const [fieldSize, setFieldSize] = useState(sceneDefaults.fieldPointSize)
-  const [follow, setFollow] = useState(true)
+  const [panel, setPanel] = useState('candidates')
   const [collapsed, setCollapsed] = useState(false)
-  const [nucleus, setNucleus] = useState(0.99)
-  const [stride, setStride] = useState(1)
   const [selected, setSelected] = useState(null)
+  const [hoveredId, setHoveredId] = useState(null)
+  const [settings, setSettings] = useState({
+    fieldOpacity: sceneDefaults.fieldOpacity,
+    fieldSize: sceneDefaults.fieldPointSize,
+    stride: 1,
+    nucleus: 0.99,
+    follow: true,
+  })
 
-  // Token text is 1.59 MB and only needed once someone actually clicks something.
   const vocab = useVocabTokens({ enabled: Boolean(selected) })
   const step = run.steps[playback.index] ?? null
 
+  // Selecting something in the scene opens the panel that explains it. Otherwise a click produces
+  // a highlight and no information, which is a dead end.
+  const select = useCallback((next) => {
+    setSelected(next)
+    if (next) setPanel('selection')
+  }, [])
+
   return (
-    <div style={{ position: 'relative', height: '100%' }}>
-      <h1 className="sr-only">AI Visualizer — watch a language model choose each word</h1>
+    <div style={shell}>
+      <Rail panels={PANELS} active={panel} onSelect={setPanel} />
 
-      <Scene
-        field={field}
-        fieldOpacity={fieldOpacity}
-        fieldSize={fieldSize}
-        step={step}
-        follow={follow}
-        nucleus={nucleus}
-        stride={stride}
-        selected={selected}
-        onSelect={setSelected}
-      />
-
-      <div style={leftColumn}>
-      <div style={displayPanel}>
-        <Slider label="Field" id="field-opacity" value={fieldOpacity} onChange={setFieldOpacity}
-          min={0} max={1} step={0.01} format={(v) => `${Math.round(v * 100)}%`} />
-        <Slider label="Dot" id="field-size" value={fieldSize} onChange={setFieldSize}
-          min={1} max={6} step={0.1} format={(v) => v.toFixed(1)} />
-
-        <Slider label="Shown" id="stride" value={stride} onChange={(v) => setStride(Math.round(v))}
-          min={1} max={20} step={1}
-          format={(v) => (v === 1 ? 'all' : `1 in ${v}`)} />
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
-          <label htmlFor="nucleus" style={{ width: '38px' }}>Lit</label>
-          <select id="nucleus" value={nucleus} onChange={(e) => setNucleus(Number(e.target.value))}
-            className="data" style={select}>
-            <option value={0.9}>top 90% of probability</option>
-            <option value={0.99}>top 99%</option>
-            <option value={0.999}>top 99.9%</option>
-            <option value={1}>everything sent</option>
-          </select>
-        </div>
-
-        <label style={checkboxRow}>
-          <input type="checkbox" checked={follow} onChange={(e) => setFollow(e.target.checked)}
-            style={{ accentColor: 'var(--candidate)' }} />
-          Follow the chosen token
-        </label>
-
-        <div style={{ color: 'var(--text-muted)', fontSize: '11.5px', paddingTop: '2px' }}>
-          {field.status === 'ready'
-            ? <><span className="data">{field.count.toLocaleString()}</span> tokens · fixture run</>
-            : field.status === 'loading' ? 'loading the vocabulary…' : `field unavailable — ${field.error}`}
-        </div>
-      </div>
-
-      {selected && (
-        <div style={readout}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <span className="token" style={{ color: 'var(--text-primary)', fontSize: '15px' }}>
-              {(selected.text ?? vocab.textFor(selected.id) ?? '…').replace(/ /g, '·') || '·'}
-            </span>
-            <button type="button" onClick={() => setSelected(null)} style={closeButton}
-              aria-label="Clear selection">✕</button>
-          </div>
-          <span className="data" style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
-            id {selected.id}
-            {selected.prob != null && ` · p=${selected.prob.toFixed(6)}`}
-            {selected.source === 'field' && ' · not among this step\u2019s candidates'}
-          </span>
-          {selected.pos3d && (
-            <span className="data" style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
-              [{selected.pos3d.map((v) => Number(v).toFixed(2)).join(', ')}]
-            </span>
+      {panel && (
+        <Panel title={TITLES[panel]} onClose={() => setPanel(null)}>
+          {panel === 'run' && <RunPanel prompt={run.prompt} done={run.done} />}
+          {panel === 'candidates' && (
+            <CandidatesPanel
+              step={step}
+              nucleus={settings.nucleus}
+              hoveredId={hoveredId}
+              selectedId={selected?.id}
+              onHover={setHoveredId}
+              onSelect={setSelected}
+            />
           )}
-        </div>
+          {panel === 'selection' && (
+            <SelectionPanel selection={selected} step={step} textFor={vocab.textFor} />
+          )}
+          {panel === 'display' && (
+            <DisplayPanel settings={settings} onChange={setSettings} tokenCount={field.count} />
+          )}
+          {panel === 'legend' && <LegendPanel />}
+        </Panel>
       )}
 
-      {step && (
-        <div style={readout}>
-          <span className="token" style={{ color: 'var(--chosen)', fontSize: '15px' }}>
-            {step.chosen.text.replace(/ /g, '·')}
-          </span>
-          <span className="data" style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
-            p={step.chosen.prob.toFixed(4)} · {step.candidates.length} considered ·{' '}
-            {step.attention.length} attention links
-          </span>
-        </div>
-      )}
-      </div>
+      <main style={stage}>
+        <h1 className="sr-only">AI Visualizer — watch a language model choose each word</h1>
 
-      {run.steps.length > 0 && (
-        <Transport
-          steps={run.steps}
-          playback={playback}
-          collapsed={collapsed}
-          onToggleCollapse={() => setCollapsed((v) => !v)}
+        <Scene
+          field={field}
+          fieldOpacity={settings.fieldOpacity}
+          fieldSize={settings.fieldSize}
+          stride={settings.stride}
+          nucleus={settings.nucleus}
+          follow={settings.follow}
+          step={step}
+          selected={selected}
+          hoveredId={hoveredId}
+          onSelect={select}
         />
-      )}
+
+        {run.steps.length > 0 && (
+          <Transport
+            steps={run.steps}
+            playback={playback}
+            collapsed={collapsed}
+            onToggleCollapse={() => setCollapsed((value) => !value)}
+          />
+        )}
+      </main>
     </div>
   )
 }
 
-function Slider({ label, id, value, onChange, min, max, step, format }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
-      <label htmlFor={id} style={{ width: '38px' }}>{label}</label>
-      <input id={id} type="range" min={min} max={max} step={step} value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
-        style={{ flex: 1, accentColor: 'var(--candidate)' }} />
-      <span className="data" style={{ color: 'var(--text-muted)', minWidth: '4ch', fontSize: '12px' }}>
-        {format(value)}
-      </span>
-    </div>
-  )
-}
+const shell = { display: 'flex', height: '100%', minHeight: 0, overflow: 'hidden' }
 
-const floating = {
-  position: 'absolute',
-  background: 'color-mix(in oklab, var(--surface-panel) 90%, transparent)',
-  border: '1px solid var(--border-hair)',
-  borderRadius: 'var(--radius-lg)',
-  color: 'var(--text-secondary)',
-  fontSize: '13px',
-  fontWeight: 300,
-  letterSpacing: '0.02em',
-}
-
-const leftColumn = {
-  position: 'absolute',
-  left: 'var(--space-lg)',
-  top: 'var(--space-lg)',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 'var(--space-sm)',
-  // The transport floats along the bottom centre, so the left column stays out of its lane
-  // rather than stacking underneath it.
-  maxHeight: 'calc(100% - 120px)',
-}
-
-const displayPanel = {
-  ...floating,
-  position: 'static',
-  width: '260px',
-  padding: 'var(--space-md)',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 'var(--space-sm)',
-}
-
-const readout = {
-  ...floating,
-  position: 'static',
-  width: '260px',
-  padding: 'var(--space-sm) var(--space-md)',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '2px',
-}
-
-const checkboxRow = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 'var(--space-sm)',
-  fontSize: '12.5px',
-  cursor: 'pointer',
-}
-
-const select = {
-  flex: 1,
-  background: 'var(--surface-raised)',
-  color: 'var(--text-secondary)',
-  border: '1px solid var(--border-hair)',
-  borderRadius: 'var(--radius-sm)',
-  padding: '3px 4px',
-  fontSize: '11.5px',
-}
-
-const closeButton = {
-  background: 'none',
-  border: 'none',
-  color: 'var(--text-muted)',
-  cursor: 'pointer',
-  fontSize: '12px',
-  padding: 0,
-}
+// `overflow: hidden` is load-bearing, not tidiness. The transport is absolutely positioned inside
+// the stage, and its intrinsic width (a timeline cell floor times however many tokens, plus the
+// controls) can exceed the stage on a narrow viewport. Without clipping, that widens the
+// document's scroll area and pushes the rail off the left edge -- the chrome scrolls away while
+// the scene stays put. Clipped here, the timeline scrolls inside itself instead.
+const stage = { position: 'relative', flex: 1, minWidth: 0, height: '100%', overflow: 'hidden' }
