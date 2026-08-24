@@ -1,11 +1,8 @@
 import { OrbitControls } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
-import { Bloom, EffectComposer } from '@react-three/postprocessing'
 import { useMemo } from 'react'
 
 import { buildAtlasSpace, expandField, makeProjector } from '../lib/atlasSpace'
-
-const BLOOM_ENABLED = false
 
 import { toHex } from '../design/color'
 import { scene as sceneDefaults, theme } from '../design/tokens'
@@ -24,7 +21,7 @@ import { VocabField } from './VocabField'
  * scene and nothing that needs one: points are unlit material, so the far edge of the vocabulary
  * dissolves into voidDeep instead of ending at a visible boundary.
  */
-export function Scene({ field, fieldOpacity, fieldSize, step, follow, nucleus, stride, tint, spread = 0, selected, hoveredId, onSelect, steps = [], index = 0, drift = true, bloom = false }) {
+export function Scene({ field, fieldOpacity, fieldSize, step, follow, nucleus, stride, tint, spread = 0, selected, hoveredId, onSelect, steps = [], index = 0, drift = true }) {
   /**
    * The spread transform, built once from the field and applied to EVERY layer.
    *
@@ -79,19 +76,6 @@ export function Scene({ field, fieldOpacity, fieldSize, step, follow, nucleus, s
 
       <LiveLayer step={step} nucleus={nucleus} selectedId={selected?.id} hoveredId={hoveredId} onSelect={onSelect} project={project} />
       <FollowChosen position={step?.chosen?.pos3d && project(step.chosen.pos3d)} enabled={follow} />
-
-      {/*
-        Bloom. The one purely visual effect in the project, and the only thing on screen that adds
-        nothing to the data. It earns its place by making dense regions bleed light, so brightness
-        reads as density -- and by giving the chosen token the presence a 12-pixel disc cannot have
-        on its own. Threshold is high so only genuinely bright accumulations glow; lower values lit
-        the entire field and flattened everything into one pale wash.
-      */}
-      {BLOOM_ENABLED && (
-        <EffectComposer>
-          <Bloom intensity={0.7} luminanceThreshold={0.5} luminanceSmoothing={0.4} mipmapBlur />
-        </EffectComposer>
-      )}
 
       {/* The camera glides; nothing snaps. Damping is the motion grammar of this world. */}
       <OrbitControls
