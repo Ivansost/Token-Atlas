@@ -50,16 +50,18 @@ export function useRun() {
   // connection state -- being connected is not the same as having run anything.
   const [isLive, setIsLive] = useState(false)
 
-  // Is the model in memory yet? A cold container spends ~27s loading a gigabyte of weights before
-  // it can answer anything, and the interface should say so rather than appear broken.
+  // Is the model in memory yet? Re-checked whenever the socket comes up, NOT once at mount: on a
+  // sleeping host the first check fails, and a stale `null` from that attempt used to let the UI
+  // claim "connected and loaded" about a container that had loaded nothing.
   useEffect(() => {
+    if (connection !== 'live') return undefined
     let cancelled = false
     fetch(`${API}/health`)
       .then((res) => res.json())
       .then((health) => !cancelled && setModelLoaded(Boolean(health.loaded)))
       .catch(() => !cancelled && setModelLoaded(null))
     return () => { cancelled = true }
-  }, [])
+  }, [connection])
 
   // RECONNECT WITH BACKOFF -- required, not defensive.
   //

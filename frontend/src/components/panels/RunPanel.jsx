@@ -145,9 +145,12 @@ function Status({ run }) {
     )
   }
 
+  // Only claims "loaded" when the server actually said so. `modelLoaded` is null when the health
+  // check has not succeeded, and claiming a loaded model on the strength of an open socket is the
+  // kind of small untruth this project does not get to make.
   return (
     <p style={note}>
-      Connected and loaded.{' '}
+      {run.modelLoaded === true ? 'Connected and loaded.' : 'Connected.'}{' '}
       {run.source === 'fixture' && 'Showing a recording until you run something.'}
     </p>
   )

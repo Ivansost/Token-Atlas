@@ -70,3 +70,36 @@ cd backend && ../.venv/bin/python -m uvicorn app.main:app --reload --port 8000
 
 **Other tools:** `chat.py` (talk to it), `tokens.py` (see tokenization), `probe.py` (one step's
 numbers in detail).
+
+## Deploying
+
+The backend is a plain container with no vendor SDK, which is what keeps the hosting choice cheap
+and swappable.
+
+```bash
+docker build -t aiviz .
+docker run --rm -p 8000:8000 -e ALLOWED_ORIGINS=https://your-frontend.example.com aiviz
+```
+
+**Measured, so you can size it honestly:** the image is 3.35 GB with the model weights baked in,
+peaks at ~690 MB of memory after a 115-token run, and runs inside a **1 GB** container. Weight
+load is ~1.2 s because nothing is downloaded at boot. Generation is roughly 7 tok/s in a
+container versus 32 natively.
+
+Frontend goes anywhere static. Set `VITE_API_URL` to the backend's public URL — the WebSocket URL
+is derived from it, so an `https://` value becomes `wss://` automatically, which matters because a
+deployed HTTPS page cannot open a plain `ws://` socket.
+
+```bash
+cd frontend && VITE_API_URL=https://your-backend.example.com npm run build
+```
+
+Both `.env.example` files list what each side needs.
+
+### What the deployed service does and doesn't do
+- **No database, no user data, nothing written at runtime.** All storage is static files in this
+  repo plus the weights in the image.
+- **Rate limited**: one generation at a time, at most three queued, and a per-connection cooldown —
+  because a public endpoint that runs a model for anyone is otherwise trivially abusable.
+- **Scale-to-zero friendly**: the frontend retries the socket with backoff and explains the wait,
+  so a sleeping container is a delay rather than a broken page.
