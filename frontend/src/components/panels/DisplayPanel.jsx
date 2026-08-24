@@ -15,6 +15,16 @@ export function DisplayPanel({ settings, onChange, tokenCount, reducedMotion = f
           format={(v) => `${Math.round(v * 100)}%`} />
       </Field>
 
+      <Field
+        htmlFor="spread"
+        label="Spread"
+        hint="De-clumps the atlas radially. 0 is the raw projection, where 57% of tokens sit inside 1% of the volume."
+      >
+        <Range id="spread" min={0} max={1} step={0.01}
+          value={settings.spread} onChange={set('spread')}
+          format={(v) => (v === 0 ? 'raw' : `${Math.round(v * 100)}%`)} />
+      </Field>
+
       <Field htmlFor="field-size" label="Dot size" hint="Pixel size of each token. Constant, so zooming separates them.">
         <Range id="field-size" min={1} max={6} step={0.1}
           value={settings.fieldSize} onChange={set('fieldSize')} format={(v) => v.toFixed(1)} />
@@ -26,7 +36,7 @@ export function DisplayPanel({ settings, onChange, tokenCount, reducedMotion = f
           format={(v) => (v === 1 ? 'all' : `1 in ${v}`)} />
       </Field>
 
-      <Field htmlFor="tint" label="Colour" hint="Hue is a direct function of position — neighbouring tokens get neighbouring hues, so the regions the projection already has become visible. No categories are invented; at zero the field returns to neutral grey.">
+      <Field htmlFor="tint" label="Colour" hint="Hue is the token's bearing from the centre and lightness is its height, so colour is pure geometry. No categories are invented; at zero the field returns to neutral grey.">
         <Range id="tint" min={0} max={1} step={0.05}
           value={settings.tint} onChange={set('tint')}
           format={(v) => (v === 0 ? 'off' : `${Math.round(v * 100)}%`)} />

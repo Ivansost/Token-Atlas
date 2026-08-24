@@ -47,7 +47,34 @@ const fragmentShader = /* glsl */ `
   }
 `
 
-export function DiscPoints({ positions, sizes, tints, alphas, depthWrite = false, additive = false }) {
+/**
+ * RING variant: an annulus rather than a filled disc.
+ *
+ * This exists because of a specific failure. The chosen token was marked with a big soft halo,
+ * and a big soft halo is the one shape that cannot survive this scene -- it is a blurry circle
+ * drawn on top of a field made entirely of circles, so it read as slightly-brighter-crowd rather
+ * than as a marker. A ring is a shape the vocabulary does not contain. Nothing else on screen is
+ * hollow, so the reticle around the current token is unmistakable at any zoom, against any
+ * density, and it stays legible even where the field is thickest.
+ *
+ * Thickness is in units of the point's own radius, so the ring keeps its proportions as it is
+ * animated rather than turning into a filled dot when it shrinks.
+ */
+const ringFragmentShader = /* glsl */ `
+  varying vec3 vTint;
+  varying float vAlpha;
+
+  void main() {
+    vec2 offset = gl_PointCoord - vec2(0.5);
+    float r = length(offset) * 2.0;              // 0 at the centre, 1 at the rim
+    float band = 0.16;
+    float ring = smoothstep(1.0, 1.0 - band, r) * smoothstep(1.0 - band * 2.0, 1.0 - band, r);
+    if (ring < 0.01) discard;
+    gl_FragColor = vec4(vTint, vAlpha * ring);
+  }
+`
+
+export function DiscPoints({ positions, sizes, tints, alphas, depthWrite = false, additive = false, ring = false }) {
   const geometry = useMemo(() => {
     const geo = new THREE.BufferGeometry()
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
@@ -62,7 +89,7 @@ export function DiscPoints({ positions, sizes, tints, alphas, depthWrite = false
     () =>
       new THREE.ShaderMaterial({
         vertexShader,
-        fragmentShader,
+        fragmentShader: ring ? ringFragmentShader : fragmentShader,
         transparent: true,
         depthWrite,
         // Additive is used for the halo pass only, where overlapping light SHOULD sum. The dots
@@ -70,7 +97,7 @@ export function DiscPoints({ positions, sizes, tints, alphas, depthWrite = false
         // destroys exactly the separability the constant point size exists to protect.
         blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
       }),
-    [depthWrite, additive],
+    [depthWrite, additive, ring],
   )
 
   return <points geometry={geometry} material={material} frustumCulled={false} />

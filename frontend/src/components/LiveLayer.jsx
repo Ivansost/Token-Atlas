@@ -34,11 +34,16 @@ const CHOSEN_BONUS = 4
 // them probability, but not claimed as part of the decision.
 const OUTSIDE_SIZE = 2.8
 
-export function LiveLayer({ step, selectedId, hoveredId, onSelect, nucleus = 0.99 }) {
+export function LiveLayer({ step, selectedId, hoveredId, onSelect, nucleus = 0.99, project = (p) => p }) {
   const attentionColor = toHex(theme.color.attention)
 
   const cloud = useMemo(() => {
-    const positioned = step?.candidates.filter((c) => c.pos3d) ?? []
+    // Every drawn coordinate goes through the same spread transform as the field. If the live
+    // layer skipped it, a candidate would render where its token used to be and the two layers
+    // would silently disagree -- the worst possible failure in a scene whose claim is that
+    // position means something.
+    const positioned = (step?.candidates.filter((c) => c.pos3d) ?? [])
+      .map((c) => ({ ...c, at: project(c.pos3d) }))
     if (positioned.length === 0) return null
 
     // THE NUCLEUS: the smallest set of candidates whose probabilities sum to the threshold.
@@ -79,25 +84,55 @@ export function LiveLayer({ step, selectedId, hoveredId, onSelect, nucleus = 0.9
       const rgb = isChosen ? chosenRGB : inNucleus ? candidateRGB : fieldRGB
       const base = inNucleus ? sizeFor(candidate.prob) : OUTSIDE_SIZE
 
-      positions.set(candidate.pos3d, i * 3)
+      positions.set(candidate.at, i * 3)
       sizes[i] = (base + (isChosen ? CHOSEN_BONUS : 0)) * (isSelected ? 1.6 : 1)
       tints.set(rgb, i * 3)
       alphas[i] = isChosen ? 1 : inNucleus ? 0.45 + 0.5 * Math.sqrt(candidate.prob) : 0.28
 
       // The halo scales with confidence, so a token the model was sure of glows harder. Outside
       // the nucleus there is no halo at all -- those tokens were barely considered.
-      halos[i] = inNucleus ? sizes[i] * 3.2 : 0
-      haloAlphas[i] = inNucleus ? (isChosen ? 0.16 : 0.07 * Math.sqrt(candidate.prob)) : 0
+      //
+      // The chosen token's halo is TIGHTER and BRIGHTER than it was. A wide faint one spread its
+      // light over enough field dots that it read as a slightly brighter patch of crowd instead
+      // of as a marker; concentrating the same light into a smaller radius gives it an edge. The
+      // marker proper is the ring below -- this is only the glow under it.
+      halos[i] = inNucleus ? sizes[i] * (isChosen ? 2.4 : 3.2) : 0
+      haloAlphas[i] = inNucleus ? (isChosen ? 0.42 : 0.07 * Math.sqrt(candidate.prob)) : 0
     })
 
     return { positions, sizes, halos, haloAlphas, tints, alphas, items: positioned, cutoff }
-  }, [step, selectedId, hoveredId, nucleus])
+  }, [step, selectedId, hoveredId, nucleus, project])
 
   const links = useMemo(() => {
     const from = step?.chosen?.pos3d
     if (!from) return []
-    return step.attention.filter((a) => a.pos3d).map((a) => ({ ...a, points: [from, a.pos3d] }))
-  }, [step])
+    const origin = project(from)
+    return step.attention
+      .filter((a) => a.pos3d)
+      .map((a) => ({ ...a, points: [origin, project(a.pos3d)] }))
+  }, [step, project])
+
+  // THE RETICLE. One ring, on the token the model just emitted, in the loudest amber the palette
+  // has. Two concentric rings rather than one so it reads as an instrument mark and not as a
+  // stray circle, and drawn as a RING because the field is made of filled dots -- a hollow shape
+  // is the one thing 151,665 discs cannot accidentally imitate.
+  const reticle = useMemo(() => {
+    const at = step?.chosen?.pos3d && project(step.chosen.pos3d)
+    if (!at) return null
+    const rgb = toRGB(theme.color.chosen)
+    const RINGS = [{ size: 26, alpha: 0.95 }, { size: 44, alpha: 0.4 }]
+    const positions = new Float32Array(RINGS.length * 3)
+    const sizes = new Float32Array(RINGS.length)
+    const tints = new Float32Array(RINGS.length * 3)
+    const alphas = new Float32Array(RINGS.length)
+    RINGS.forEach((r, i) => {
+      positions.set(at, i * 3)
+      sizes[i] = r.size
+      tints.set(rgb, i * 3)
+      alphas[i] = r.alpha
+    })
+    return { positions, sizes, tints, alphas }
+  }, [step, project])
 
   if (!step || !cloud) return null
 
@@ -112,28 +147,15 @@ export function LiveLayer({ step, selectedId, hoveredId, onSelect, nucleus = 0.9
           color={attentionColor}
           // Weight is carried by thickness AND opacity, never by colour alone, so the ranking
           // survives greyscale and colour blindness.
-          lineWidth={0.6 + 3.2 * (link.weight / maxWeight)}
+          // Floors raised on both channels. The weakest of the five used to be drawn at 0.6px and
+          // 22% opacity against a near-black ground, which is indistinguishable from not drawing
+          // it -- so a step looked like it had two attention targets when it had five.
+          lineWidth={1.6 + 3.4 * (link.weight / maxWeight)}
           transparent
-          opacity={0.22 + 0.6 * (link.weight / maxWeight)}
+          opacity={0.5 + 0.5 * (link.weight / maxWeight)}
           depthWrite={false}
         />
       ))}
-
-      {/*
-        HALO PASS -- glow without post-processing.
-        Bloom via EffectComposer was tried and produced a black canvas: on this R3F/three/
-        postprocessing combination it takes over the render loop and outputs nothing. Rather than
-        chase library versions, the glow is drawn directly: the same points again, several times
-        larger, faint, and additively blended, so bright tokens bleed light into the space around
-        them. It affects only the live layer, so the field keeps its crisp separable dots.
-      */}
-      <DiscPoints
-        positions={cloud.positions}
-        sizes={cloud.halos}
-        tints={cloud.tints}
-        alphas={cloud.haloAlphas}
-        additive
-      />
 
       {/*
         HALO, drawn first so the crisp disc sits on top of it.
@@ -159,6 +181,16 @@ export function LiveLayer({ step, selectedId, hoveredId, onSelect, nucleus = 0.9
         alphas={cloud.alphas}
       />
 
+      {reticle && (
+        <DiscPoints
+          positions={reticle.positions}
+          sizes={reticle.sizes}
+          tints={reticle.tints}
+          alphas={reticle.alphas}
+          ring
+        />
+      )}
+
       {/*
         Hit targets. The discs are drawn at a constant PIXEL size, which a world-space raycast
         cannot reason about, so picking rides on invisible spheres sized in world units. They are
@@ -167,7 +199,7 @@ export function LiveLayer({ step, selectedId, hoveredId, onSelect, nucleus = 0.9
       {cloud.items.map((candidate) => (
         <mesh
           key={candidate.id}
-          position={candidate.pos3d}
+          position={candidate.at}
           onClick={(event) => {
             event.stopPropagation()
             onSelect?.({ ...candidate, source: 'candidate', chosen: candidate.id === step.chosen.id })

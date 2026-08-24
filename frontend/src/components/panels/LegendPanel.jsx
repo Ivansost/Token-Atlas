@@ -14,8 +14,13 @@ export function LegendPanel() {
   return (
     <>
       <Entry swatch="var(--chosen)" title="Chosen token">
-        The token the model actually emitted. This colour means nothing else anywhere in the
-        interface.
+        The token the model actually emitted, marked with a ring. Nothing else in the scene is a
+        ring, and nothing else is this colour.
+      </Entry>
+
+      <Entry swatch="var(--trail)" title="The route">
+        Joins emitted tokens in order through their real positions, so the sentence is a path. It
+        ages from bronze to hot yellow, newest brightest, and keeps only the last 18 words.
       </Entry>
 
       <Entry swatch="var(--candidate)" title="Candidate">
@@ -28,10 +33,34 @@ export function LegendPanel() {
         Thickness and opacity both carry weight.
       </Entry>
 
-      <Entry swatch="var(--field)" title="The vocabulary">
+      <Entry swatch={fieldGradient} title="The vocabulary">
         All 151,665 tokens the model knows, at fixed positions from a UMAP projection of its own
-        embeddings. Ambient, deliberately dim, and clickable.
+        embeddings. Ambient, deliberately dim, and clickable. Its colour is pure geometry — hue is
+        the token's bearing from the centre, lightness is its height — so it encodes no language,
+        script, token type or probability.
       </Entry>
+
+      <div style={rule}>
+        <h3 style={h3}>Warm means decision</h3>
+        <p style={body}>
+          The vocabulary is confined to a cool arc — teal through indigo — and may never leave it.
+          Every warm colour on screen belongs to the live decision: the ring, the route, and
+          nothing else. That is why the chosen token is findable among 151,665 others at a glance.
+        </p>
+      </div>
+
+      <div style={rule}>
+        <h3 style={h3}>Spread is a display setting</h3>
+        <p style={body}>
+          The raw projection puts <span className="data">57%</span> of the vocabulary inside{' '}
+          <span className="data">1.2%</span> of its volume, which is unreadable at any zoom that
+          shows the whole atlas. The Display panel's <em>Spread</em> control evens that density out
+          radially. It keeps every token's direction and its rank by distance from the centre
+          exactly; what it changes is how far apart things are drawn — the same bargain as the
+          square-root scale on probability. Set it to <span className="data">raw</span> to see the
+          untouched projection, and note that the Selection panel always reports raw coordinates.
+        </p>
+      </div>
 
       <div style={rule}>
         <h3 style={h3}>The attention rule</h3>
@@ -77,6 +106,8 @@ function Entry({ swatch, title, children }) {
   )
 }
 
+const fieldGradient =
+  'linear-gradient(135deg, oklch(0.40 0.155 186), oklch(0.50 0.155 230) 50%, oklch(0.66 0.155 296))'
 const dot = { width: '9px', height: '9px', borderRadius: '50%', flex: 'none', marginTop: '5px' }
 const h3 = { margin: 0, fontSize: '13px', fontWeight: 400, color: 'var(--text-primary)' }
 const body = { margin: '2px 0 0', fontSize: '12.5px', lineHeight: 1.55, color: 'var(--text-muted)' }

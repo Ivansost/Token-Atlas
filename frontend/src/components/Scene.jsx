@@ -1,6 +1,9 @@
 import { OrbitControls } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
 import { Bloom, EffectComposer } from '@react-three/postprocessing'
+import { useMemo } from 'react'
+
+import { buildAtlasSpace, expandField, makeProjector } from '../lib/atlasSpace'
 
 const BLOOM_ENABLED = false
 
@@ -21,7 +24,26 @@ import { VocabField } from './VocabField'
  * scene and nothing that needs one: points are unlit material, so the far edge of the vocabulary
  * dissolves into voidDeep instead of ending at a visible boundary.
  */
-export function Scene({ field, fieldOpacity, fieldSize, step, follow, nucleus, stride, tint, selected, hoveredId, onSelect, steps = [], index = 0, drift = true, bloom = false }) {
+export function Scene({ field, fieldOpacity, fieldSize, step, follow, nucleus, stride, tint, spread = 0, selected, hoveredId, onSelect, steps = [], index = 0, drift = true, bloom = false }) {
+  /**
+   * The spread transform, built once from the field and applied to EVERY layer.
+   *
+   * One table, one projector, three consumers. The field buffer is transformed in bulk; the live
+   * layer and the trail get a per-point function, because between them they draw a couple of
+   * hundred points a frame rather than 151,665. What matters is that they all use the same
+   * mapping -- a candidate drawn in one space over a field drawn in another would put tokens
+   * beside neighbours they do not have, which is the one lie this scene cannot afford.
+   */
+  const space = useMemo(
+    () => (field.status === 'ready' ? buildAtlasSpace(field.positions, field.count) : null),
+    [field.status, field.positions, field.count],
+  )
+  const drawn = useMemo(
+    () => (space ? expandField(field.positions, field.count, space, spread) : field.positions),
+    [space, field.positions, field.count, spread],
+  )
+  const project = useMemo(() => makeProjector(space, spread), [space, spread])
+
   return (
     <Canvas
       role="img"
@@ -31,7 +53,10 @@ export function Scene({ field, fieldOpacity, fieldSize, step, follow, nucleus, s
       dpr={[1, 2]}
       gl={{ antialias: true, powerPreference: 'high-performance' }}
       // Points need a pick radius in world units; without one a click on a 2px dot never hits.
-      raycaster={{ params: { Points: { threshold: 1.1 } } }}
+      // The pick radius is in WORLD units, so it has to grow with the atlas: after the spread
+      // transform the same dot occupies the same pixels but sits in a much larger space, and a
+      // fixed 1.1 threshold would make the field effectively unclickable.
+      raycaster={{ params: { Points: { threshold: 1.1 + 2.4 * spread } } }}
       onPointerMissed={() => onSelect?.(null)}
       style={{ background: theme.color.void }}
     >
@@ -39,7 +64,8 @@ export function Scene({ field, fieldOpacity, fieldSize, step, follow, nucleus, s
 
       {field.status === 'ready' && (
         <VocabField
-          positions={field.positions}
+          positions={drawn}
+          raw={field.positions}
           count={field.count}
           opacity={fieldOpacity}
           size={fieldSize ?? sceneDefaults.fieldPointSize}
@@ -49,10 +75,10 @@ export function Scene({ field, fieldOpacity, fieldSize, step, follow, nucleus, s
         />
       )}
 
-      <Trail steps={steps} index={index} />
+      <Trail steps={steps} index={index} project={project} />
 
-      <LiveLayer step={step} nucleus={nucleus} selectedId={selected?.id} hoveredId={hoveredId} onSelect={onSelect} />
-      <FollowChosen position={step?.chosen?.pos3d} enabled={follow} />
+      <LiveLayer step={step} nucleus={nucleus} selectedId={selected?.id} hoveredId={hoveredId} onSelect={onSelect} project={project} />
+      <FollowChosen position={step?.chosen?.pos3d && project(step.chosen.pos3d)} enabled={follow} />
 
       {/*
         Bloom. The one purely visual effect in the project, and the only thing on screen that adds

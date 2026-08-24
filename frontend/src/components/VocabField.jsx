@@ -58,7 +58,7 @@ function makeDiscTexture() {
  * screen before the model has done anything spends the one visual language the live layer needs.
  * The field is ambient texture, not information to read.
  */
-export function VocabField({ positions, count, opacity = 0.55, size = 2.4, stride = 1, tint = 0.7, onSelect }) {
+export function VocabField({ positions, raw, count, opacity = 0.55, size = 2.4, stride = 1, tint = 0.7, onSelect }) {
   const materialRef = useRef()
   const disc = useMemo(makeDiscTexture, [])
 
@@ -81,39 +81,40 @@ export function VocabField({ positions, count, opacity = 0.55, size = 2.4, strid
   }, [positions, count, stride])
 
   /**
-   * COLOUR BY POSITION.
+   * COLOUR BY POSITION, ON A COOL ARC.
    *
-   * Hue is a direct function of where a token sits in the projection: the angle it makes around
-   * the centre. Nothing is clustered and no category is invented -- neighbouring tokens simply get
-   * neighbouring hues, which is enough to make the regions the projection already has visible.
-   * The honest sentence is "hue is location", and it is exactly true.
+   * Hue is a direct function of where a token sits: the angle it makes around the centre, mapped
+   * onto the arc reserved for the field. Nothing is clustered and no category is invented --
+   * neighbouring tokens simply get neighbouring hues, which is enough to make the regions the
+   * projection already has visible. The honest sentence is "hue is location", and it is exactly
+   * true.
    *
-   * Two constraints. The amber band (45-95) is skipped by construction, because amber means "the
-   * model chose this" and may not leak into ambient scenery. And chroma stays low: this is the
-   * field, which exists to be looked past, so it may have structure without competing with the
-   * forty lit points in front of it.
+   * The arc is COOL and it is narrow, and that is the fix for the thing that was wrong here.
+   * Spraying the field across all 360 degrees meant the vocabulary contained oranges and yellows,
+   * so amber -- the one colour that is supposed to mean "the model chose this" -- had to compete
+   * with scenery painted in its own family. Confining the field to teal-through-indigo gives the
+   * live layer the entire warm half of the wheel to itself.
    *
-   * Hues are quantised into buckets so the OKLCH conversion runs ~70 times rather than 151,665.
+   * Hues are quantised into buckets so the OKLCH conversion runs ~144 times rather than 151,665.
    */
   const colors = useMemo(() => {
     if (tint <= 0) return null
 
-    const RESERVED_START = 45
-    const RESERVED_SIZE = 50
+    const { start, span, chroma, levels } = theme.fieldArc
     const BUCKETS = 72
-    const usable = 360 - RESERVED_SIZE
 
-    // Two bands of lightness, picked by height, so the cloud has vertical structure instead of
-    // reading as one flat colour wheel. Deeper and more saturated than looks right in a swatch:
-    // these are 2-pixel semi-transparent dots on black, and both size and alpha dilute colour
-    // hard. Authored for how it lands on screen, not for how it reads in isolation.
-    const LEVELS = [0.5, 0.66]
-    const palette = LEVELS.map((lightness) =>
-      Array.from({ length: BUCKETS }, (_, i) => {
-        let hue = (i * usable) / BUCKETS
-        if (hue >= RESERVED_START) hue += RESERVED_SIZE
-        return toRGB(`oklch(${lightness} ${(0.17 * tint).toFixed(3)} ${hue.toFixed(1)})`)
-      }),
+    // Lightness is ELEVATION, hue is AZIMUTH. Together they encode the token's full direction
+    // from the centre of the atlas, not just its bearing -- which is the fix for the atlas
+    // looking monochrome from any single viewpoint. With hue alone, a camera parked on one side
+    // saw one arc of the wheel and the whole vocabulary read as teal; adding elevation means two
+    // tokens on the same bearing but at different heights are told apart from every angle.
+    //
+    // Elevation is `y / r`, the sine of the angle above the equator, so it is scale-free and
+    // survives the spread transform untouched.
+    const palette = levels.map((lightness) =>
+      Array.from({ length: BUCKETS }, (_, i) =>
+        toRGB(`oklch(${lightness} ${(chroma * tint).toFixed(3)} ${(start + (i * span) / BUCKETS).toFixed(1)})`),
+      ),
     )
 
     const base = toRGB(theme.color.field)
@@ -126,7 +127,10 @@ export function VocabField({ positions, count, opacity = 0.55, size = 2.4, strid
       const z = drawn[i * 3 + 2]
       const angle = Math.atan2(z, x) + Math.PI              // 0..2pi
       const bucket = Math.min(BUCKETS - 1, Math.floor((angle / (2 * Math.PI)) * BUCKETS))
-      const rgb = palette[y > 0 ? 1 : 0][bucket]
+      const r = Math.sqrt(x * x + y * y + z * z) || 1
+      const elevation = (y / r + 1) / 2                     // 0 at the south pole, 1 at the north
+      const level = Math.min(levels.length - 1, Math.floor(elevation * levels.length))
+      const rgb = palette[level][bucket]
       // Blend toward the neutral field colour so `tint` genuinely fades to the old look at 0.
       out[i * 3] = base[0] + (rgb[0] - base[0]) * tint
       out[i * 3 + 1] = base[1] + (rgb[1] - base[1]) * tint
@@ -141,7 +145,7 @@ export function VocabField({ positions, count, opacity = 0.55, size = 2.4, strid
     if (colors) geo.setAttribute('color', new THREE.BufferAttribute(colors, 3))
     // The projection is centred on its median already; a sphere spares Three.js the bounding
     // pass over 151k points on every frustum check.
-    geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 120)
+    geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 400)
     return geo
   }, [drawn, colors])
 
@@ -158,10 +162,15 @@ export function VocabField({ positions, count, opacity = 0.55, size = 2.4, strid
         // `event.index` indexes the DRAWN buffer, which is a subsample when stride > 1, so it has
         // to be mapped back to the real token id before it means anything.
         const id = ids ? ids[drawnIndex] : drawnIndex
+        // RAW coordinates, deliberately. `drawn` has been through the spread transform, which is
+        // a display choice; the number a visitor reads in the Selection panel has to be the one
+        // the projection actually produced.
+        const source = raw ?? drawn
         onSelect?.({
           id,
           source: 'field',
-          pos3d: [drawn[drawnIndex * 3], drawn[drawnIndex * 3 + 1], drawn[drawnIndex * 3 + 2]],
+          pos3d: [source[id * 3], source[id * 3 + 1], source[id * 3 + 2]],
+          drawnAt: [drawn[drawnIndex * 3], drawn[drawnIndex * 3 + 1], drawn[drawnIndex * 3 + 2]],
         })
       }}
     >
