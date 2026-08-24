@@ -108,9 +108,32 @@ Then point the frontend at it and set the backend's allowed origin:
 cd frontend && VITE_API_URL=https://<your-modal-url> npm run build
 ```
 
-### Deploying the frontend
+### Deploying the frontend to Vercel
 
-Frontend goes anywhere static. Set `VITE_API_URL` to the backend's public URL — the WebSocket URL
+```bash
+npm i -g vercel
+cd frontend
+vercel login
+vercel link                    # create or attach the project
+vercel env add VITE_API_URL production      # paste the Modal URL when prompted
+vercel --prod
+```
+
+**`VITE_API_URL` must be set before the build, not after.** Vite substitutes it at build time, so
+a value added later has no effect until the next deploy — and the symptom is a live site that
+insists the model is offline while pointing at `localhost:8000`.
+
+[`vercel.json`](frontend/vercel.json) sets the caching policy. Hashed assets are immutable; the
+vocabulary artifacts get a week, because Vite copies `public/` through without fingerprinting and
+`immutable` would strand a stale map in every cache the day they are regenerated.
+
+Afterwards, put the Vercel URL into `FRONTEND_ORIGIN` in
+[`deploy/modal_app.py`](deploy/modal_app.py) and run `modal deploy` again, or the deployed page
+cannot read `/health`.
+
+### Deploying the frontend anywhere else
+
+Set `VITE_API_URL` to the backend's public URL — the WebSocket URL
 is derived from it, so an `https://` value becomes `wss://` automatically, which matters because a
 deployed HTTPS page cannot open a plain `ws://` socket.
 

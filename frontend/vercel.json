@@ -1,0 +1,22 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "headers": [
+    {
+      "//": "Vite fingerprints these with a content hash, so a changed file is a changed URL and they can be cached forever.",
+      "source": "/assets/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "//": "The vocabulary artifacts: 1.82 MB of coordinates and 1.59 MB of token text. NOT fingerprinted -- Vite copies public/ through with the filenames intact -- so 'immutable' would be a lie the day they are regenerated, and every cached browser would keep a stale map forever. A week is long enough that a returning visitor re-downloads nothing, short enough that a rebuild is not permanent.",
+      "source": "/data/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=604800" }
+      ]
+    }
+  ]
+}
