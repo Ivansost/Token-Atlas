@@ -110,7 +110,7 @@ export default function App() {
       )}
 
       <main style={stage}>
-        <h1 className="sr-only">AI Visualizer — watch a language model choose each word</h1>
+        <h1 className="sr-only">Token Atlas — watch a language model choose each word</h1>
 
         <Scene
           field={field}

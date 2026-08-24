@@ -1,4 +1,4 @@
-# AI Visualizer
+# Token Atlas
 
 > Watch a real language model choose every word it writes, inside a map of everything it knows.
 > Pause, rotate, and rewind any decision.

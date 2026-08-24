@@ -49,7 +49,7 @@ MIN_SECONDS_BETWEEN_RUNS = 1.5
 _slot = asyncio.Semaphore(MAX_CONCURRENT_RUNS)
 _waiting = 0
 
-app = FastAPI(title="AI Visualizer")
+app = FastAPI(title="Token Atlas")
 
 # The Vite dev server runs on a different port, so the browser treats it as cross-origin.
 # ALLOWED_ORIGINS is set to the deployed frontend at M8; localhost stays for development.
