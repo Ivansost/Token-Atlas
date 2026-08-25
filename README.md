@@ -24,10 +24,9 @@ strongest attention, then streams that step to the browser.
 
 ![A five-stage diagram showing how Token Atlas generates and visualizes each token](docs/token-generation-flow.svg)
 
-I wrote the loop myself instead of calling `model.generate()` because the completed answer is not
-enough for the visualization. Token Atlas needs the candidates, chosen token, and attention data
-from every step. The chosen token becomes the next input, and the loop continues until the answer
-is finished.
+The project uses a manual decoding loop instead of `model.generate()` because the completed answer
+does not include the data needed for the visualization. Each step exposes the candidates, chosen
+token, and attention data before the chosen token is fed back into the model.
 
 The vocabulary projection is computed offline and stored as a compact Float32 coordinate file.
 In the browser, all 151,665 field points are drawn with one GPU buffer rather than one React object
@@ -38,16 +37,6 @@ FastAPI streams the step events over one WebSocket. The React frontend stores th
 separately from playback, so generation can finish quickly while the viewer pauses or rewinds at
 their own pace. The backend is deployed on Modal and the frontend is built with Vite and hosted on
 Vercel.
-
-## Reading the visualization
-
-This is not a chain-of-thought viewer. Attention weights show where the model placed attention,
-but they do not prove why it chose a token.
-
-The probabilities come directly from the model's next-token distribution. Position comes from a
-3D UMAP projection, which is useful for seeing neighbourhoods but cannot preserve every distance
-from the original embedding space. The default spread control makes the dense centre easier to
-read; setting it to zero restores the raw projected coordinates.
 
 ## What I learned
 
