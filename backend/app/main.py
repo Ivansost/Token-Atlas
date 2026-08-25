@@ -51,7 +51,19 @@ MIN_SECONDS_BETWEEN_RUNS = 1.5
 RATE_WINDOW_SECONDS = float(os.environ.get("RATE_WINDOW_SECONDS", "60"))
 MAX_RUNS_PER_CLIENT_WINDOW = int(os.environ.get("MAX_RUNS_PER_CLIENT_WINDOW", "6"))
 MAX_RUNS_GLOBAL_WINDOW = int(os.environ.get("MAX_RUNS_GLOBAL_WINDOW", "24"))
-MAX_CONNECTIONS_PER_CLIENT = int(os.environ.get("MAX_CONNECTIONS_PER_CLIENT", "3"))
+# Deliberately generous, and 3 was measurably wrong.
+#
+# Behind Modal's proxy a client disconnect does not reach the ASGI app promptly -- the server task
+# stays parked in `receive_json` until the 300s input timeout, so a closed connection keeps being
+# counted as active for up to five minutes. At 3, that meant one visitor who reloaded the page
+# three times, or whose socket dropped and hit the frontend's reconnect backoff, was locked out of
+# their own demo for the next five minutes. Measured against the deployment, not guessed.
+#
+# The real abuse control is the sliding window below: it is time-based and therefore self-healing,
+# whereas a connection cap interacting with delayed disconnects is not. This cap exists only to
+# stop a single client opening an unbounded number of sockets, so it is set to match the
+# container's own concurrency ceiling rather than trying to be clever.
+MAX_CONNECTIONS_PER_CLIENT = int(os.environ.get("MAX_CONNECTIONS_PER_CLIENT", "8"))
 
 _slot = asyncio.Semaphore(MAX_CONCURRENT_RUNS)
 _waiting = 0
@@ -102,6 +114,24 @@ def _client_key(ws: WebSocket) -> str:
 
 @app.websocket("/ws")
 async def ws_generate(ws: WebSocket) -> None:
+    # ACCEPT FIRST, THEN REFUSE. This ordering is load-bearing and counter-intuitive.
+    #
+    # Closing before accepting is the textbook way to refuse a WebSocket, and behind Modal it is
+    # actively harmful. Modal's proxy completes the handshake at the edge before the ASGI app is
+    # reached, so a close-before-accept never terminates the server task: it hangs until Modal's
+    # 300-second input timeout while the browser reports "a broken close frame containing a
+    # reserved status code". Each refusal therefore pins one of the container's concurrency slots
+    # for five minutes, and since the app runs 2 containers x 8 inputs, a burst of ~16 refusals
+    # takes the endpoint down for everybody -- refusals becoming the outage they exist to prevent.
+    #
+    # This was measured in production, not reasoned about: the deployed logs showed
+    # "CONNECT /ws -> 101 Switching Protocols (duration: 300.0 s)" once per refused connection,
+    # and every subsequent client received HTTP 403 until the slots drained.
+    #
+    # Accepting costs nothing here. No prompt is read and no model work is scheduled before the
+    # checks below, so an unauthorised caller still gets a socket that closes immediately.
+    await ws.accept()
+
     if not origin_allowed(ws.headers.get("origin"), _allowed_origins):
         await ws.close(code=status.WS_1008_POLICY_VIOLATION)
         return
@@ -114,7 +144,6 @@ async def ws_generate(ws: WebSocket) -> None:
 
     _active_connections[client] = active + 1
     try:
-        await ws.accept()
         last_run = 0.0
         while True:
             try:
