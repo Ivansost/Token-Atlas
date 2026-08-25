@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300" viewBox="0 0 1200 300" role="img" aria-labelledby="title desc">
+  <title id="title">Token Atlas generation flow</title>
+  <desc id="desc">A prompt is tokenized, passed through Qwen, ranked to choose the next token, and streamed to the 3D atlas. The chosen token then becomes the next input.</desc>
+  <defs>
+    <marker id="loop-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#f2b84b" />
+    </marker>
+  </defs>
+
+  <rect width="1200" height="300" rx="24" fill="#0b0e13" />
+  <text x="40" y="38" fill="#8d96a3" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="12" font-weight="700" letter-spacing="2">ONE GENERATION STEP</text>
+
+  <g font-family="Inter, ui-sans-serif, system-ui, sans-serif">
+    <g transform="translate(40 68)">
+      <rect width="190" height="120" rx="14" fill="#141922" stroke="#2b323d" />
+      <circle cx="24" cy="25" r="5" fill="#7dd3c7" />
+      <text x="22" y="62" fill="#f2f0e9" font-size="18" font-weight="650">Prompt</text>
+      <text x="22" y="88" fill="#9ca5b1" font-size="14">The text entered</text>
+      <text x="22" y="107" fill="#9ca5b1" font-size="14">by the viewer</text>
+    </g>
+
+    <path d="M 235 128 H 243" fill="none" stroke="#68717d" stroke-width="2" />
+    <path d="M 242 122 L 252 128 L 242 134 Z" fill="#68717d" />
+
+    <g transform="translate(255 68)">
+      <rect width="210" height="120" rx="14" fill="#141922" stroke="#2b323d" />
+      <circle cx="24" cy="25" r="5" fill="#6e9fe8" />
+      <text x="22" y="62" fill="#f2f0e9" font-size="18" font-weight="650">Tokenize</text>
+      <text x="22" y="88" fill="#9ca5b1" font-size="14">Text becomes a</text>
+      <text x="22" y="107" fill="#9ca5b1" font-size="14">sequence of token IDs</text>
+    </g>
+
+    <path d="M 470 128 H 478" fill="none" stroke="#68717d" stroke-width="2" />
+    <path d="M 477 122 L 487 128 L 477 134 Z" fill="#68717d" />
+
+    <g transform="translate(490 68)">
+      <rect width="220" height="120" rx="14" fill="#171823" stroke="#45405f" />
+      <circle cx="24" cy="25" r="5" fill="#a798e8" />
+      <text x="22" y="62" fill="#f2f0e9" font-size="18" font-weight="650">Qwen forward pass</text>
+      <text x="22" y="88" fill="#aaa4bc" font-size="14">Scores the vocabulary</text>
+      <text x="22" y="107" fill="#aaa4bc" font-size="14">and returns attention</text>
+    </g>
+
+    <path d="M 715 128 H 723" fill="none" stroke="#68717d" stroke-width="2" />
+    <path d="M 722 122 L 732 128 L 722 134 Z" fill="#68717d" />
+
+    <g transform="translate(735 68)">
+      <rect width="190" height="120" rx="14" fill="#211b12" stroke="#6a5226" />
+      <circle cx="24" cy="25" r="5" fill="#f2b84b" />
+      <text x="22" y="62" fill="#fff4dc" font-size="18" font-weight="650">Choose a token</text>
+      <text x="22" y="88" fill="#cbbd9e" font-size="14">Highest probability</text>
+      <text x="22" y="107" fill="#cbbd9e" font-size="14">wins in this demo</text>
+    </g>
+
+    <path d="M 930 128 H 938" fill="none" stroke="#68717d" stroke-width="2" />
+    <path d="M 937 122 L 947 128 L 937 134 Z" fill="#68717d" />
+
+    <g transform="translate(950 68)">
+      <rect width="210" height="120" rx="14" fill="#141922" stroke="#2b323d" />
+      <circle cx="24" cy="25" r="5" fill="#ea8fb5" />
+      <text x="22" y="62" fill="#f2f0e9" font-size="18" font-weight="650">Stream the step</text>
+      <text x="22" y="88" fill="#9ca5b1" font-size="14">Candidates and choice</text>
+      <text x="22" y="107" fill="#9ca5b1" font-size="14">appear in the 3D atlas</text>
+    </g>
+
+    <path d="M 830 188 V 232 Q 830 252 810 252 H 383 Q 363 252 363 232 V 197" fill="none" stroke="#f2b84b" stroke-width="2" stroke-dasharray="5 6" marker-end="url(#loop-arrow)" />
+    <rect x="482" y="232" width="230" height="38" rx="19" fill="#0b0e13" />
+    <text x="597" y="256" text-anchor="middle" fill="#d8b66f" font-size="13" font-weight="600">chosen token becomes the next input</text>
+  </g>
+</svg>
