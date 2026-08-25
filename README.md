@@ -9,7 +9,7 @@ the map. I also used the project to learn the backend math behind generation: ho
 turn token embeddings into logits, how softmax turns those scores into probabilities, and how
 temperature, top-k, and greedy decoding change the final choice.
 
-**Full write-up:** [Coming soon]()
+**Full write-up:** [Read the full Token Atlas write-up](https://www.ivansostaric.com/projects/token-atlas)
 
 **Live demo:** [Open Token Atlas](https://www.ivansostaric.com/projects/token-atlas/demo)
 
