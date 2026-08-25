@@ -57,3 +57,69 @@ visualization practical.
 - **Model and backend:** Python, PyTorch, Hugging Face Transformers, FastAPI, WebSockets
 - **Frontend:** React, Three.js, React Three Fiber, Vite
 - **Projection and hosting:** NumPy, UMAP, Modal, Vercel
+
+## Running it locally
+
+The first model load downloads ~1 GB into `~/.cache/huggingface/hub`, once. Everything runs on CPU.
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r backend/requirements.txt
+```
+
+Backend on :8000, frontend on :5173 — both need to be running to generate:
+
+```bash
+cd backend && ../.venv/bin/python -m uvicorn app.main:app --reload --port 8000
+```
+
+```bash
+cd frontend && npm install && npm run dev
+```
+
+`GET /health` reports whether the model is loaded. `WS /ws` takes
+`{"prompt": "...", "max_tokens": 60}` and streams `step` events followed by `done`.
+
+To watch a whole generation in the terminal — every step's candidates, probabilities and
+attention, with no browser involved:
+
+```bash
+./.venv/bin/python backend/scripts/run_local.py "What is the capital of France?"
+```
+
+## Tests
+
+No test runner to install; both suites use what the language ships with.
+
+```bash
+python3 -m unittest discover -s backend/tests -t .
+```
+
+```bash
+cd frontend && npm test
+```
+
+## Deploying
+
+The backend is a plain container with no vendor SDK, which is what keeps the hosting choice
+swappable — `deploy/modal_app.py` is the only file that mentions Modal.
+
+```bash
+modal deploy deploy/modal_app.py
+```
+
+**The frontend and backend deploy separately, and shipping one is not shipping the other.** Several
+guarantees live in the backend — full probability precision, the WebSocket origin check, and the
+rate limits — so a frontend-only release leaves those unchanged in production. After changing
+anything under `backend/`, redeploy and then confirm against the live URL rather than assuming:
+
+```bash
+curl -s https://<your-modal-url>/health
+```
+
+Every public frontend origin must also appear in `FRONTEND_ORIGINS` in `deploy/modal_app.py`; run
+`modal deploy` again after changing that tuple or the new origin cannot connect.
+
+Vercel builds the frontend from `frontend/`. `VITE_API_URL` is substituted at **build** time, so it
+has to be set before the build runs — it lives in the committed `frontend/.env.production`, which
+keeps the deploy reproducible from a clone.
