@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 
 /**
@@ -84,6 +84,7 @@ export function DiscPoints({ positions, sizes, tints, alphas, depthWrite = false
     geo.computeBoundingSphere()
     return geo
   }, [positions, sizes, tints, alphas])
+  useEffect(() => () => geometry.dispose(), [geometry])
 
   const material = useMemo(
     () =>
@@ -104,6 +105,7 @@ export function DiscPoints({ positions, sizes, tints, alphas, depthWrite = false
       }),
     [depthWrite, additive, ring, depthTest],
   )
+  useEffect(() => () => material.dispose(), [material])
 
   return <points geometry={geometry} material={material} renderOrder={renderOrder} frustumCulled={false} />
 }

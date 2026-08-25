@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp, ChevronsLeft, Pause, Play } from 'lucide-react'
 import { useEffect, useMemo, useRef } from 'react'
 
+import { formatProbability } from '../lib/formatProbability'
 import { SPEEDS } from '../lib/playback'
 
 /**
@@ -100,7 +101,7 @@ export function Transport({ steps, playback, collapsed, onToggleCollapse, reduce
                   onClick={() => seek(i)}
                   data-current={i === index}
                   aria-current={i === index ? 'step' : undefined}
-                  title={`step ${i + 1} — ${JSON.stringify(step.chosen.text)} (${step.chosen.prob.toFixed(4)})`}
+                  title={`step ${i + 1} — ${JSON.stringify(step.chosen.text)} (${formatProbability(step.chosen.prob, 4)})`}
                   className="token timeline-cell"
                   style={{
                     ...cell,

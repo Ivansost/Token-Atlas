@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+
+import { decodeCoordinateBuffer } from './vocabData'
 
 /**
  * Loads the vocabulary's 3D coordinates.
@@ -17,33 +19,34 @@ const COORDS_URL = `${import.meta.env.BASE_URL}data/vocab_xyz.bin`
 
 export function useVocabField() {
   const [state, setState] = useState({ status: 'loading', positions: null, count: 0, error: null })
+  const [attempt, setAttempt] = useState(0)
+  const retry = useCallback(() => {
+    setState({ status: 'loading', positions: null, count: 0, error: null })
+    setAttempt((value) => value + 1)
+  }, [])
 
   useEffect(() => {
-    let cancelled = false
+    const controller = new AbortController()
 
-    fetch(COORDS_URL)
+    fetch(COORDS_URL, { signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
         return res.arrayBuffer()
       })
       .then((buffer) => {
-        if (cancelled) return
-        const positions = new Float32Array(buffer)
-        if (positions.length % 3 !== 0) {
-          throw new Error(`expected xyz triples, got ${positions.length} floats`)
-        }
+        const positions = decodeCoordinateBuffer(buffer)
         setState({ status: 'ready', positions, count: positions.length / 3, error: null })
       })
       .catch((error) => {
-        if (cancelled) return
-        // A missing artifact is survivable: the app runs without the field rather than blanking.
-        setState({ status: 'error', positions: null, count: 0, error: error.message })
+        if (error.name !== 'AbortError') {
+          // Generation survives without the field, but the interface names the failure and offers
+          // recovery rather than silently replacing the atlas with an empty room.
+          setState({ status: 'error', positions: null, count: 0, error: error.message })
+        }
       })
 
-    return () => {
-      cancelled = true
-    }
-  }, [])
+    return () => controller.abort()
+  }, [attempt])
 
-  return state
+  return { ...state, retry }
 }

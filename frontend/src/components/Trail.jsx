@@ -55,7 +55,7 @@ export function Trail({ steps, index, maxTrail = MAX_TRAIL, project = (p) => p }
     // Both ends warm. `tail` is a deep bronze -- unmistakably the same family as the head, and
     // unmistakably not the field.
     const head = toRGB(theme.color.chosen)
-    const tail = toRGB('oklch(0.55 0.140 62)')
+    const tail = toRGB(theme.color.trailPast)
     const ramp = (age) => head.map((channel, c) => tail[c] + (channel - tail[c]) * age)
 
     // A dot at each waypoint, so individual decisions stay countable along the route.

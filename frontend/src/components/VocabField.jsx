@@ -23,8 +23,9 @@ import { theme } from '../design/tokens'
  * 狗 and ·canine, so the Chinese word for dog is near the English one rather than near other
  * Chinese words. Do not colour this field by script and call it structure.
  *
- * Why it exists at all: the visual reference is dense, and one generation step has only 40
- * candidates. Rather than fabricate points to fake density, the field supplies real ones.
+ * Why it exists at all: the visual reference is dense, and one generation step carries only 200
+ * candidates out of a 151,665-token vocabulary. Rather than fabricate density, the field supplies
+ * real points.
  *
  * It is deliberately dim, and it is deliberately UNLINKED. Lines in this scene mean attention:
  * drawing the vocabulary's neighbour graph here was tried and reverted, because 400,000 links on
@@ -119,6 +120,7 @@ export function VocabField({ positions, raw, count, opacity = 0.55, size = 2.4, 
   )
 
   const material = useMemo(makeFieldMaterial, [])
+  useEffect(() => () => material.dispose(), [material])
   useEffect(() => {
     material.uniforms.uSize.value = size
     material.uniforms.uOpacity.value = opacity
@@ -134,6 +136,7 @@ export function VocabField({ positions, raw, count, opacity = 0.55, size = 2.4, 
     geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 400)
     return geo
   }, [drawn, colors, pointSizes])
+  useEffect(() => () => geometry.dispose(), [geometry])
 
   if (!positions || count === 0) return null
 

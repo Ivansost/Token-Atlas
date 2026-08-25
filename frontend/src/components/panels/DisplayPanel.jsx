@@ -4,7 +4,7 @@
  * These were floating over the scene during M4.1 as scaffolding. They live here now, which is
  * what "nothing on the right, one panel at a time" actually means in practice.
  */
-export function DisplayPanel({ settings, onChange, tokenCount, reducedMotion = false }) {
+export function DisplayPanel({ settings, onChange, tokenCount, fieldStatus, reducedMotion = false }) {
   const set = (key) => (value) => onChange({ ...settings, [key]: value })
 
   return (
@@ -75,8 +75,14 @@ export function DisplayPanel({ settings, onChange, tokenCount, reducedMotion = f
       )}
 
       <p style={note}>
-        <span className="data">{tokenCount.toLocaleString()}</span> tokens, each at a fixed position
-        from a UMAP projection of the model’s own embeddings.
+        {fieldStatus === 'ready' ? (
+          <><span className="data">{tokenCount.toLocaleString()}</span> tokens, each at a fixed
+          position from a UMAP projection of the model’s own embeddings.</>
+        ) : fieldStatus === 'error' ? (
+          'Vocabulary map unavailable. Use Retry atlas above the scene.'
+        ) : (
+          'Loading the vocabulary map…'
+        )}
       </p>
     </>
   )

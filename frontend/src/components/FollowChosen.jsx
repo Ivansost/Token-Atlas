@@ -2,6 +2,8 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useRef } from 'react'
 import * as THREE from 'three'
 
+import { dampingAmount } from '../lib/motion'
+
 /**
  * Keeps the chosen token in view as the run advances.
  *
@@ -21,7 +23,7 @@ export function FollowChosen({ position, enabled = true }) {
   const goal = useRef(new THREE.Vector3())
   const delta = useRef(new THREE.Vector3())
 
-  useFrame(() => {
+  useFrame((_, elapsed) => {
     if (!enabled || !position || !controls?.target) return
 
     goal.current.set(position[0], position[1], position[2])
@@ -31,7 +33,10 @@ export function FollowChosen({ position, enabled = true }) {
     // so the sphere swells or shrinks depending on which direction the next word happens to live
     // in -- apparent size stops meaning probability and starts meaning "how far the camera
     // drifted". Translating both preserves the viewer's distance and angle exactly.
-    delta.current.subVectors(goal.current, controls.target).multiplyScalar(0.045)
+    // Exponential damping is time-based, so the same move takes the same time at 30, 60 or 120 Hz.
+    // 2.76/s matches the old 4.5% step at 60 Hz without tying motion to the display refresh rate.
+    const amount = dampingAmount(elapsed)
+    delta.current.subVectors(goal.current, controls.target).multiplyScalar(amount)
     controls.target.add(delta.current)
     camera.position.add(delta.current)
     controls.update()

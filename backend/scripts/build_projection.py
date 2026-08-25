@@ -12,7 +12,7 @@ WHY UMAP AND NOT PCA -- measured at M3, not assumed:
     method                     neighbourhood preservation
     random chance                                    1.0%
     PCA-3  (the original plan)                       7.2%
-    UMAP-3                                          67.8%
+    UMAP-3                                          77.7%
 
 "Neighbourhood preservation" = of a token's 10 nearest neighbours in the model's own 896-D space,
 what fraction stay within the nearest 1% of the 3-D scene. PCA scored 7%, which means node

@@ -1,3 +1,5 @@
+import { formatProbabilityDetail } from '../../lib/formatProbability'
+
 /**
  * Selection: the full detail for whatever was clicked, in the scene or in the list.
  *
@@ -5,7 +7,7 @@
  * field token names it too, and says plainly that the model did not consider it here. A point you
  * cannot interrogate is decoration, and this panel is what keeps 151,665 of them from being that.
  */
-export function SelectionPanel({ selection, step, textFor }) {
+export function SelectionPanel({ selection, step, textFor, tokenStatus, tokenError, onRetryTokens }) {
   if (!selection) {
     return (
       <p style={note}>
@@ -16,6 +18,7 @@ export function SelectionPanel({ selection, step, textFor }) {
   }
 
   const text = selection.text ?? textFor(selection.id)
+  const needsTokenLookup = selection.text == null
   const isCandidate = selection.prob != null
   const rank = isCandidate && step
     ? step.candidates.findIndex((c) => c.id === selection.id) + 1
@@ -35,13 +38,27 @@ export function SelectionPanel({ selection, step, textFor }) {
 
       <dl style={grid}>
         <Row label="Token id" value={selection.id} mono />
-        {isCandidate && <Row label="Probability" value={selection.prob.toFixed(6)} mono />}
+        {isCandidate && <Row label="Probability" value={formatProbabilityDetail(selection.prob)} mono />}
         {rank > 0 && <Row label="Rank this step" value={`${rank} of ${step.candidates.length}`} mono />}
         {selection.pos3d && (
           <Row label="Position" mono
             value={`[${selection.pos3d.map((v) => Number(v).toFixed(2)).join(', ')}]`} />
         )}
       </dl>
+
+      {needsTokenLookup && tokenStatus === 'loading' && (
+        <p role="status" style={note}>Loading this token’s label…</p>
+      )}
+
+      {needsTokenLookup && tokenStatus === 'error' && (
+        <div role="alert" style={lookupError}>
+          <p style={note}>The token label did not load. Its id and coordinates are still accurate.</p>
+          <button className="text-control" type="button" onClick={onRetryTokens} style={retryButton}>
+            Retry label
+          </button>
+          {tokenError && <span className="sr-only">{tokenError}</span>}
+        </div>
+      )}
 
       {!isCandidate && (
         <p style={note}>
@@ -78,3 +95,15 @@ const grid = {
 const dt = { color: 'var(--text-muted)' }
 const dd = { margin: 0, color: 'var(--text-secondary)', textAlign: 'right', overflowWrap: 'anywhere' }
 const note = { margin: '4px 0 0', fontSize: '12.5px', lineHeight: 1.55, color: 'var(--text-muted)' }
+const lookupError = { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 'var(--space-sm)' }
+const retryButton = {
+  minHeight: '30px',
+  padding: '4px 8px',
+  border: '1px solid var(--border-hair)',
+  borderRadius: 'var(--radius-sm)',
+  background: 'var(--surface-raised)',
+  color: 'var(--text-secondary)',
+  font: 'inherit',
+  fontSize: '12px',
+  cursor: 'pointer',
+}

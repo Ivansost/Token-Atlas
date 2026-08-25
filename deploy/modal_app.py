@@ -21,8 +21,8 @@ import sys
 import modal
 
 # The browser fetches /health from both the standalone deployment and the portfolio route.
-# WebSockets are not subject to CORS, so omitting one of these origins creates a confusing split:
-# generation works, but the interface cannot report whether the model is loaded.
+# WebSockets are not subject to CORS, so the FastAPI app checks their Origin header explicitly.
+# Omitting an origin here blocks both the health request and generation by design.
 FRONTEND_ORIGINS = (
     "https://token-atlas-project.vercel.app",
     "https://www.ivansostaric.com",

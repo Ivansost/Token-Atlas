@@ -1,3 +1,5 @@
+import { theme } from '../../design/tokens'
+
 /**
  * Legend: what the scene means, and what it does not.
  *
@@ -20,7 +22,7 @@ export function LegendPanel() {
 
       <Entry swatch="var(--trail)" title="The route">
         Joins emitted tokens in order through their real positions, so the sentence is a path. It
-        ages from bronze to hot yellow, newest brightest, and keeps only the last 18 words.
+        ages from bronze to hot yellow, newest brightest, and keeps only the last 18 tokens.
       </Entry>
 
       <Entry swatch="var(--candidate)" title="Candidate">
@@ -43,13 +45,13 @@ export function LegendPanel() {
       <div style={rule}>
         <h3 style={h3}>Why some nodes are bigger</h3>
         <p style={body}>
-          Node size is the token's own id, which in a BPE vocabulary is the order the tokenizer
-          learned it — so bigger means more common. It is a real ordering, not decoration: ids
-          256–269 are <span className="token">in</span>, <span className="token">er</span>,{' '}
-          <span className="token">on</span>, <span className="token">re</span>,{' '}
-          <span className="token">at</span>, <span className="token">st</span>, while ids near
-          150,000 are lone Devanagari, Georgian and archaic Greek glyphs. The ramp is logarithmic
-          because word frequency is roughly Zipfian.
+          Earlier tokenizer ids render larger. In this BPE vocabulary, those ids often belong to
+          common merge pieces: 256–269 include <span className="token">in</span>,{' '}
+          <span className="token">er</span>, <span className="token">on</span>,{' '}
+          <span className="token">re</span>, <span className="token">at</span> and{' '}
+          <span className="token">st</span>, while ids near 150,000 include lone Devanagari,
+          Georgian and archaic Greek glyphs. It is a rough frequency proxy, not measured corpus
+          frequency; the logarithmic ramp makes that real id ordering legible.
         </p>
       </div>
 
@@ -119,8 +121,11 @@ function Entry({ swatch, title, children }) {
   )
 }
 
-const fieldGradient =
-  'linear-gradient(135deg, oklch(0.40 0.155 186), oklch(0.50 0.155 230) 50%, oklch(0.66 0.155 296))'
+const { start, span, chroma, levels } = theme.fieldArc
+const fieldGradient = `linear-gradient(135deg,
+  oklch(${levels[0]} ${chroma} ${start}),
+  oklch(${levels[Math.floor(levels.length / 2)]} ${chroma} ${start + span / 2}) 50%,
+  oklch(${levels.at(-1)} ${chroma} ${start + span}))`
 const dot = { width: '9px', height: '9px', borderRadius: '50%', flex: 'none', marginTop: '5px' }
 const h3 = { margin: 0, fontSize: '13px', fontWeight: 400, color: 'var(--text-primary)' }
 const body = { margin: '2px 0 0', fontSize: '12.5px', lineHeight: 1.55, color: 'var(--text-muted)' }

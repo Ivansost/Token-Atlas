@@ -98,13 +98,21 @@ export default function DesktopApp({ reducedMotion = false }) {
             />
           )}
           {panel === 'selection' && (
-            <SelectionPanel selection={selected} step={step} textFor={vocab.textFor} />
+            <SelectionPanel
+              selection={selected}
+              step={step}
+              textFor={vocab.textFor}
+              tokenStatus={vocab.status}
+              tokenError={vocab.error}
+              onRetryTokens={vocab.retry}
+            />
           )}
           {panel === 'display' && (
             <DisplayPanel
               settings={settings}
               onChange={setSettings}
               tokenCount={field.count}
+              fieldStatus={field.status}
               reducedMotion={reducedMotion}
             />
           )}
@@ -134,10 +142,10 @@ export default function DesktopApp({ reducedMotion = false }) {
           onSelect={select}
           steps={run.steps}
           index={playback.index}
-          drift={!playback.playing}
+          drift={!reducedMotion && !playback.playing}
         />
 
-        <ConnectionStatus run={run} />
+        <ConnectionStatus run={run} field={field} />
 
         {run.steps.length > 0 && (
           <Transport

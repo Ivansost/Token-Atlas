@@ -11,8 +11,8 @@ ever disagree about a field, this file is the answer.
 the schema freezes here, PCA lands a milestone later, and adding a field to a "frozen" contract one
 milestone after freezing it would make the freeze meaningless.
 
-Coordinates travel inside the event rather than as a lookup table shipped to the browser -- ~40
-triples per step is far cheaper than a 1.8 MB vocabulary file every visitor downloads.
+Coordinates travel inside the event rather than through another lookup during generation. The
+frontend separately downloads the full field once so every vocabulary token remains clickable.
 """
 
 from typing import Any, Optional
@@ -22,7 +22,9 @@ Vec3 = Optional[list[float]]
 
 def token_ref(token_id: int, text: str, prob: float, pos3d: Vec3 = None) -> dict[str, Any]:
     """One candidate token: what it is, how likely the model thought it was, where it sits in 3D."""
-    return {"id": int(token_id), "text": text, "prob": round(float(prob), 6), "pos3d": pos3d}
+    # Preserve the model's float rather than rounding the long tail to literal zero. JSON emits the
+    # shortest round-trippable decimal, and the frontend decides how to display small values.
+    return {"id": int(token_id), "text": text, "prob": float(prob), "pos3d": pos3d}
 
 
 def attention_ref(pos: int, text: str, weight: float, pos3d: Vec3 = None) -> dict[str, Any]:
@@ -31,7 +33,7 @@ def attention_ref(pos: int, text: str, weight: float, pos3d: Vec3 = None) -> dic
     Note this is keyed by position, not token id -- the same word can appear twice in a prompt and
     be weighted differently each time.
     """
-    return {"pos": int(pos), "text": text, "weight": round(float(weight), 6), "pos3d": pos3d}
+    return {"pos": int(pos), "text": text, "weight": float(weight), "pos3d": pos3d}
 
 
 def context_ref(pos: int, text: str, is_template: bool) -> dict[str, Any]:
@@ -55,7 +57,7 @@ def step_event(
     """One generated token.
 
     chosen         the token actually emitted, as a token_ref
-    candidates     the top ~40 the model considered, ranked, as token_refs
+    candidates     the top 200 the model considered, ranked, as token_refs
     attention      the top 5 earlier positions by weight, as attention_refs.
                    RULE: last layer, averaged across heads. Stated in the UI legend.
                    It means "which earlier tokens this position weighted most heavily".
@@ -74,7 +76,7 @@ def step_event(
         "chosen": chosen,
         "candidates": candidates,
         "attention": attention,
-        "attention_row": [round(float(w), 6) for w in attention_row],
+        "attention_row": [float(w) for w in attention_row],
         "context": context,
     }
 

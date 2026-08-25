@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
+import { validateTokenList } from './vocabData'
+
 /**
  * The text of every token, indexed the same way as the coordinates.
  *
@@ -18,33 +20,49 @@ function load() {
   if (!inflight) {
     inflight = fetch(URL)
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(res.statusText))))
+      .then(validateTokenList)
       .then((tokens) => {
         cache = tokens
         return tokens
       })
-      .catch(() => {
-        cache = []
-        return cache
-      })
+      .finally(() => { inflight = null })
   }
   return inflight
 }
 
 export function useVocabTokens({ enabled }) {
   const [tokens, setTokens] = useState(cache)
+  const [error, setError] = useState(null)
+  const [attempt, setAttempt] = useState(0)
+
+  const retry = useCallback(() => {
+    cache = null
+    inflight = null
+    setTokens(null)
+    setError(null)
+    setAttempt((value) => value + 1)
+  }, [])
 
   useEffect(() => {
-    if (!enabled || tokens) return
+    if (!enabled) return undefined
+    if (cache) return undefined
     let cancelled = false
-    load().then((loaded) => {
-      if (!cancelled) setTokens(loaded)
-    })
+    load()
+      .then((loaded) => {
+        if (cancelled) return
+        setTokens(loaded)
+      })
+      .catch((reason) => {
+        if (cancelled) return
+        setError(reason.message)
+      })
     return () => {
       cancelled = true
     }
-  }, [enabled, tokens])
+  }, [enabled, attempt])
 
   const textFor = useCallback((id) => tokens?.[id] ?? null, [tokens])
+  const status = tokens ? 'ready' : error ? 'error' : enabled ? 'loading' : 'idle'
 
-  return { tokens, textFor, ready: Boolean(tokens?.length) }
+  return { tokens, textFor, ready: Boolean(tokens), status, error, retry }
 }

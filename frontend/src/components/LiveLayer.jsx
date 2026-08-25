@@ -1,5 +1,6 @@
 import { Line } from '@react-three/drei'
-import { useMemo } from 'react'
+import { useThree } from '@react-three/fiber'
+import { useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 
 import { toHex, toRGB } from '../design/color'
@@ -10,7 +11,7 @@ import { DiscPoints } from './DiscPoints'
  * One decision, drawn: what the model considered, what it picked, what it looked at.
  *
  * This is the layer the whole project exists for, and it is the only thing in the scene allowed
- * to use colour. The field behind it stays grey precisely so these forty objects can own the eye.
+ * to use warm colour. The cool field behind it recedes so this adaptive decision set owns the eye.
  *
  * Every position here is real. A candidate sits at its token's fixed coordinate, so `Paris`,
  * `London` and `巴黎` appear almost on top of each other -- within one unit in the projection --
@@ -34,8 +35,16 @@ const CHOSEN_BONUS = 4
 // them probability, but not claimed as part of the decision.
 const OUTSIDE_SIZE = 2.8
 
+// A dot may be only a few CSS pixels wide on a high-density display. Its hit target is deliberately
+// larger, but still tight enough that nearby candidates resolve to whichever centre is closest.
+const MIN_PICK_RADIUS = 8
+const PICK_PADDING = 4
+const MAX_CLICK_DRIFT = 2
+
 export function LiveLayer({ step, selectedId, hoveredId, onSelect, nucleus = 0.99, project = (p) => p }) {
   const attentionColor = toHex(theme.color.attention)
+  const camera = useThree((state) => state.camera)
+  const gl = useThree((state) => state.gl)
 
   const cloud = useMemo(() => {
     // Every drawn coordinate goes through the same spread transform as the field. If the live
@@ -100,7 +109,45 @@ export function LiveLayer({ step, selectedId, hoveredId, onSelect, nucleus = 0.9
       haloAlphas[i] = inNucleus ? (isChosen ? 0.42 : 0.07 * Math.sqrt(candidate.prob)) : 0
     })
 
-    return { positions, sizes, halos, haloAlphas, tints, alphas, items: positioned, cutoff }
+    const pack = (indices) => {
+      const packedPositions = new Float32Array(indices.length * 3)
+      const packedSizes = new Float32Array(indices.length)
+      const packedHalos = new Float32Array(indices.length)
+      const packedHaloAlphas = new Float32Array(indices.length)
+      const packedTints = new Float32Array(indices.length * 3)
+      const packedAlphas = new Float32Array(indices.length)
+      indices.forEach((source, target) => {
+        packedPositions.set(positions.subarray(source * 3, source * 3 + 3), target * 3)
+        packedSizes[target] = sizes[source]
+        packedHalos[target] = halos[source]
+        packedHaloAlphas[target] = haloAlphas[source]
+        packedTints.set(tints.subarray(source * 3, source * 3 + 3), target * 3)
+        packedAlphas[target] = alphas[source]
+      })
+      return {
+        positions: packedPositions,
+        sizes: packedSizes,
+        halos: packedHalos,
+        haloAlphas: packedHaloAlphas,
+        tints: packedTints,
+        alphas: packedAlphas,
+      }
+    }
+
+    const foreground = []
+    const background = []
+    positioned.forEach((candidate, i) => {
+      if (i < cutoff || candidate.id === step.chosen.id) foreground.push(i)
+      else background.push(i)
+    })
+
+    return {
+      positions,
+      sizes,
+      items: positioned,
+      foreground: pack(foreground),
+      background: pack(background),
+    }
   }, [step, selectedId, hoveredId, nucleus, project])
 
   const links = useMemo(() => {
@@ -133,6 +180,81 @@ export function LiveLayer({ step, selectedId, hoveredId, onSelect, nucleus = 0.9
     })
     return { positions, sizes, tints, alphas }
   }, [step, project])
+
+  useEffect(() => {
+    if (!cloud || !step || !onSelect) return undefined
+
+    const canvas = gl.domElement
+    const projected = new THREE.Vector3()
+    let pointerDown = null
+
+    const handlePointerDown = (event) => {
+      if (event.button !== 0) return
+      pointerDown = { x: event.clientX, y: event.clientY }
+    }
+
+    const handleClick = (event) => {
+      // OrbitControls also begins on pointer-down. A drag that happens to end over a candidate is
+      // navigation, not selection, so match React Three Fiber's two-pixel click tolerance.
+      if (pointerDown && Math.hypot(event.clientX - pointerDown.x, event.clientY - pointerDown.y) > MAX_CLICK_DRIFT) {
+        pointerDown = null
+        return
+      }
+      pointerDown = null
+
+      const bounds = canvas.getBoundingClientRect()
+      if (bounds.width === 0 || bounds.height === 0) return
+
+      // `gl_PointSize` is measured in framebuffer pixels while pointer coordinates and the canvas
+      // rectangle are CSS pixels. Deriving the scale from the backing buffer keeps picking honest
+      // on both ordinary and Retina displays.
+      const framebufferScale = canvas.width / bounds.width || 1
+      let nearest = null
+      let nearestDistanceSq = Infinity
+
+      camera.updateMatrixWorld()
+
+      for (let i = 0; i < cloud.items.length; i += 1) {
+        projected.fromArray(cloud.positions, i * 3).project(camera)
+
+        // Ignore points behind the camera or outside its near/far clipping planes.
+        if (!Number.isFinite(projected.x) || projected.z < -1 || projected.z > 1) continue
+
+        const x = bounds.left + ((projected.x + 1) * bounds.width) / 2
+        const y = bounds.top + ((1 - projected.y) * bounds.height) / 2
+        const dx = event.clientX - x
+        const dy = event.clientY - y
+        const distanceSq = dx * dx + dy * dy
+        const visibleRadius = cloud.sizes[i] / (2 * framebufferScale)
+        const pickRadius = Math.max(MIN_PICK_RADIUS, visibleRadius + PICK_PADDING)
+
+        if (distanceSq <= pickRadius * pickRadius && distanceSq < nearestDistanceSq) {
+          nearest = cloud.items[i]
+          nearestDistanceSq = distanceSq
+        }
+      }
+
+      if (!nearest) return
+
+      // Candidate points sit over the vocabulary field. Once one wins the screen-space test, do
+      // not let the scene's world-space raycaster select the field point behind it or clear the
+      // selection as a miss.
+      event.stopPropagation()
+      event.stopImmediatePropagation()
+      onSelect({ ...nearest, source: 'candidate', chosen: nearest.id === step.chosen.id })
+    }
+
+    // React Three Fiber listens on the canvas wrapper. Capturing on the canvas lets candidate
+    // picking take precedence only when a candidate was actually hit; every other click continues
+    // to the existing field picker and onPointerMissed path unchanged.
+    canvas.addEventListener('pointerdown', handlePointerDown, true)
+    canvas.addEventListener('click', handleClick, true)
+
+    return () => {
+      canvas.removeEventListener('pointerdown', handlePointerDown, true)
+      canvas.removeEventListener('click', handleClick, true)
+    }
+  }, [camera, cloud, gl, onSelect, step])
 
   if (!step || !cloud) return null
 
@@ -168,19 +290,32 @@ export function LiveLayer({ step, selectedId, hoveredId, onSelect, nucleus = 0.9
         loads, and nothing is drawn at all. A wide, faint, additively-blended copy of the same
         points gives the lit layer presence with no compositor involved and nothing to break.
       */}
+      {cloud.background.sizes.length > 0 && (
+        <DiscPoints
+          positions={cloud.background.positions}
+          sizes={cloud.background.sizes}
+          tints={cloud.background.tints}
+          alphas={cloud.background.alphas}
+        />
+      )}
+
       <DiscPoints
-        positions={cloud.positions}
-        sizes={cloud.halos}
-        tints={cloud.tints}
-        alphas={cloud.haloAlphas}
-        blending={THREE.AdditiveBlending}
+        positions={cloud.foreground.positions}
+        sizes={cloud.foreground.halos}
+        tints={cloud.foreground.tints}
+        alphas={cloud.foreground.haloAlphas}
+        additive
+        depthTest={false}
+        renderOrder={7}
       />
 
       <DiscPoints
-        positions={cloud.positions}
-        sizes={cloud.sizes}
-        tints={cloud.tints}
-        alphas={cloud.alphas}
+        positions={cloud.foreground.positions}
+        sizes={cloud.foreground.sizes}
+        tints={cloud.foreground.tints}
+        alphas={cloud.foreground.alphas}
+        depthTest={false}
+        renderOrder={8}
       />
 
       {reticle && (
@@ -194,27 +329,6 @@ export function LiveLayer({ step, selectedId, hoveredId, onSelect, nucleus = 0.9
           renderOrder={12}
         />
       )}
-
-      {/*
-        Hit targets. The discs are drawn at a constant PIXEL size, which a world-space raycast
-        cannot reason about, so picking rides on invisible spheres sized in world units. They are
-        deliberately generous -- clicking a 2-pixel dot is not an interaction, it is a test.
-      */}
-      {cloud.items.map((candidate) => (
-        <mesh
-          key={candidate.id}
-          position={candidate.at}
-          onClick={(event) => {
-            event.stopPropagation()
-            onSelect?.({ ...candidate, source: 'candidate', chosen: candidate.id === step.chosen.id })
-          }}
-          onPointerOver={() => { document.body.style.cursor = 'pointer' }}
-          onPointerOut={() => { document.body.style.cursor = '' }}
-        >
-          <sphereGeometry args={[0.7 + 1.4 * Math.sqrt(candidate.prob), 8, 6]} />
-          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-        </mesh>
-      ))}
     </group>
   )
 }

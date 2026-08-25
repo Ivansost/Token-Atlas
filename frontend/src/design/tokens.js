@@ -41,6 +41,7 @@ export const theme = {
     // chosen token reads instantly against 151,665 others: nothing else in the room is warm.
     chosen: 'oklch(0.88 0.180 88)',        // the emitted token and nothing else
     trail: 'oklch(0.83 0.170 80)',         // the route through tokens already emitted; chosen's own past
+    trailPast: 'oklch(0.55 0.140 62)',     // the oldest retained end of that same route
     candidate: 'oklch(0.93 0.025 230)',    // considered but not picked: bright, deliberately colourless
     attention: 'oklch(0.76 0.195 335)',    // links back to weighted earlier positions
     field: 'oklch(0.45 0.030 265)',        // the vocabulary at rest: ambient texture, not information
@@ -53,7 +54,7 @@ export const theme = {
    * COOL ONLY. The arc runs teal -> blue -> indigo and stops short of magenta, which leaves the
    * whole warm half of the wheel to the live layer and keeps `attention` (335) clear of the end
    * of the ramp. Chroma is low because this is scenery: it may have structure without competing
-   * with the forty lit points in front of it.
+   * with the adaptive candidate nucleus in front of it.
    */
   // Chroma is higher than a swatch would suggest and the light band is capped below 0.6. Both
   // are corrections for the same measured effect: these are 2-pixel dots at half opacity on a
@@ -67,9 +68,9 @@ export const theme = {
     ui: '"IBM Plex Sans", system-ui, sans-serif',
     data: '"IBM Plex Mono", ui-monospace, monospace',
     // Token text is Chinese, Cyrillic, and sub-word fragments as often as it is English.
-    // The CJK siblings sit ahead of the generic fallback so a token never drops to a
-    // mismatched system face in the middle of a ranked list.
-    token: '"IBM Plex Mono", "IBM Plex Sans JP", "Noto Sans SC", ui-monospace, monospace',
+    // Native script faces sit ahead of the generic fallback so CJK tokens land in a deliberate
+    // system family without adding a multi-megabyte webfont to the atlas payload.
+    token: '"IBM Plex Mono", "IBM Plex Sans", "PingFang SC", "Hiragino Sans", "Yu Gothic UI", "Microsoft YaHei", ui-monospace, monospace',
   },
 
   space: { xs: '4px', sm: '8px', md: '14px', lg: '22px', xl: '34px' },

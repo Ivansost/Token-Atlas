@@ -10,14 +10,28 @@
  * and a broken page. It disappears the moment the model is live, because a permanent status chip
  * is chrome that stopped carrying information.
  */
-export function ConnectionStatus({ run }) {
+export function ConnectionStatus({ run, field }) {
   const message = statusFor(run)
-  if (!message) return null
+  const fieldFailed = field?.status === 'error'
+  if (!message && !fieldFailed) return null
 
   return (
-    <div style={shell} role="status" aria-live="polite">
-      <span style={dot} />
-      <span>{message}</span>
+    <div style={stack}>
+      {fieldFailed && (
+        <div style={notice} role="alert">
+          <span style={dot} />
+          <span>The vocabulary map did not load. Generation still works.</span>
+          <button className="text-control" type="button" onClick={field.retry} style={retryButton}>
+            Retry atlas
+          </button>
+        </div>
+      )}
+      {message && (
+        <div style={notice} role="status" aria-live="polite">
+          <span style={dot} />
+          <span>{message}</span>
+        </div>
+      )}
     </div>
   )
 }
@@ -39,15 +53,25 @@ function statusFor(run) {
   return null
 }
 
-const shell = {
+const stack = {
   position: 'absolute',
   top: 'var(--space-lg)',
   left: '50%',
   transform: 'translateX(-50%)',
+  zIndex: 20,
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: 'var(--space-sm)',
+  width: 'min(620px, calc(100% - var(--space-xl)))',
+  pointerEvents: 'none',
+}
+
+const notice = {
   display: 'flex',
   alignItems: 'center',
   gap: 'var(--space-sm)',
-  maxWidth: 'min(560px, calc(100% - var(--space-xl)))',
+  maxWidth: '100%',
   padding: 'var(--space-sm) var(--space-md)',
   background: 'color-mix(in oklab, var(--surface-panel) 92%, transparent)',
   border: '1px solid var(--border-hair)',
@@ -56,6 +80,7 @@ const shell = {
   fontSize: '13px',
   fontWeight: 400,
   letterSpacing: '0.02em',
+  pointerEvents: 'auto',
 }
 
 // A neutral status marker. Candidate milk remains reserved for model data.
@@ -65,4 +90,17 @@ const dot = {
   flex: 'none',
   borderRadius: '50%',
   background: 'var(--text-secondary)',
+}
+
+const retryButton = {
+  flex: 'none',
+  minHeight: '28px',
+  padding: '3px 8px',
+  border: '1px solid var(--border-hair)',
+  borderRadius: 'var(--radius-sm)',
+  background: 'var(--surface-raised)',
+  color: 'var(--text-primary)',
+  font: 'inherit',
+  fontSize: '12px',
+  cursor: 'pointer',
 }

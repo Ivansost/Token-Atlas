@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 
-import { toRGB } from '../design/color'
-import { theme } from '../design/tokens'
+import { toRGB } from '../design/color.js'
+import { theme } from '../design/tokens.js'
 
 /**
  * The field's material: shaded sphere impostors, not flat specks.
@@ -28,12 +28,11 @@ import { theme } from '../design/tokens'
  *      there is nothing for the eye to latch onto. Real node graphs vary node size, which is why
  *      they read as populations of distinct things.
  *
- * On (3), the size is REAL and not decoration. It comes from the token's own id, which in a BPE
- * vocabulary is merge order -- the tokenizer learned the most frequent pieces first. Verified
- * against this vocabulary: ids 256-269 are `in`, `er`, `on`, `re`, `at`, `st`, `en`, `or`, and
- * ids around 150,000 are lone Devanagari, Gujarati, Georgian and archaic Greek glyphs. So low id
- * really does mean common, the ramp is logarithmic because word frequency is roughly Zipfian,
- * and the honest sentence is "bigger means the tokenizer learned it earlier".
+ * On (3), size comes from token id. In this BPE vocabulary lower ids tend to be earlier merge
+ * pieces: ids 256-269 are `in`, `er`, `on`, `re`, `at`, `st`, `en`, `or`, while ids around
+ * 150,000 include lone Devanagari, Gujarati, Georgian and archaic Greek glyphs. That makes id a
+ * useful ordering and a rough frequency proxy, not a measured corpus frequency. The honest
+ * sentence is "bigger means an earlier tokenizer id".
  */
 
 const vertexShader = /* glsl */ `
@@ -113,21 +112,21 @@ export function makeFieldMaterial() {
 }
 
 /**
- * Per-point size multiplier from token id, on a log ramp because frequency is roughly Zipfian.
+ * Per-point size multiplier from token id, on a log ramp so the long id range remains legible.
  *
  * A linear ramp put almost the whole vocabulary at the small end and wasted the range on the few
- * hundred most common tokens. On a log ramp the sizes actually spread: id 0 lands near 1.75x, a
- * common word around 1.25x, an uncommon one 1.0x, and a rare glyph at the 0.85x floor.
+ * hundred earliest tokens. On a log ramp the sizes actually spread: id 0 lands near 1.75x, an
+ * earlier token around 1.25x, a later one 1.0x, and the high-id tail at the 0.85x floor.
  */
 export function sizesFromIds(ids, drawnCount, vocabCount) {
   const out = new Float32Array(drawnCount)
   const denom = Math.log(1 + vocabCount)
   for (let i = 0; i < drawnCount; i += 1) {
     const id = ids ? ids[i] : i
-    const commonness = 1 - Math.log(1 + id) / denom
+    const earlyId = 1 - Math.log(1 + id) / denom
     // Floor raised for the same reason as the shading: most of the vocabulary sits at the rare
     // end, so a low floor made most of the field tiny and the atlas looked emptier than it is.
-    out[i] = 0.85 + 0.9 * commonness
+    out[i] = 0.85 + 0.9 * earlyId
   }
   return out
 }

@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
+import { formatProbability } from '../../lib/formatProbability'
+
 /**
  * The numbers panel: everything the model considered at this step, ranked, with its real figures.
  *
@@ -68,7 +70,7 @@ export function CandidatesPanel({
             {step.chosen.text.replace(/ /g, '·') || '·'}
           </span>
           <span className="data" style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>
-            {step.chosen.prob.toFixed(4)}
+            {formatProbability(step.chosen.prob, 4)}
           </span>
         </div>
         <p style={note}>
@@ -122,7 +124,7 @@ export function CandidatesPanel({
                 ...prob,
                 color: inNucleus ? 'var(--text-secondary)' : 'var(--text-muted)',
               }}>
-                {row.prob.toFixed(4)}
+                {formatProbability(row.prob, 4)}
               </span>
               <span style={track}>
                 {/* Square root, matching the node sizing. Linear bars would render everything
@@ -152,7 +154,7 @@ const list = { display: 'flex', flexDirection: 'column', gap: '1px' }
 
 const rowStyle = {
   display: 'grid',
-  gridTemplateColumns: '22px minmax(0, 1fr) 46px 52px',
+  gridTemplateColumns: '22px minmax(0, 1fr) 58px 52px',
   alignItems: 'center',
   minHeight: '28px',
   gap: 'var(--space-sm)',

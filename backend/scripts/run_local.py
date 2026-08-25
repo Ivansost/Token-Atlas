@@ -19,7 +19,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.decode import generate_steps, show  # noqa: E402
+from app.decode import TOP_K, generate_steps, show  # noqa: E402
 
 DEFAULT_PROMPT = "What is the capital of France?"
 
@@ -28,12 +28,13 @@ def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("prompt", nargs="*", default=None)
     p.add_argument("--max-tokens", type=int, default=40)
-    p.add_argument("--candidates", type=int, default=40,
+    p.add_argument("--candidates", type=int, default=TOP_K,
                    help="how many ranked candidates each event carries (the wire payload)")
-    p.add_argument("--top", type=int, default=6, help="candidates to print per step (of 40 sent)")
+    p.add_argument("--top", type=int, default=6,
+                   help=f"candidates to print per step (of {TOP_K} sent by default)")
     p.add_argument("--json", action="store_true", help="dump raw events instead of a readable view")
     p.add_argument("--full", action="store_true",
-                   help="show the ENTIRE attention row and all 40 candidates, not just the top few")
+                   help="show the ENTIRE attention row and every sent candidate, not just the top few")
     args = p.parse_args()
 
     prompt = " ".join(args.prompt) if args.prompt else DEFAULT_PROMPT
@@ -55,7 +56,7 @@ def main() -> None:
                 first = False
 
             chosen = event["chosen"]
-            print(f"step {event['step']:>2}   ->  {show(chosen['text']):<14} p={chosen['prob']:.4f}")
+            print(f"step {event['step']:>2}   ->  {show(chosen['text']):<14} p={chosen['prob']:.6g}")
 
             cands = " ".join(
                 f"{show(c['text'])}={c['prob']:.3f}" for c in event["candidates"][:args.top]
@@ -94,14 +95,14 @@ def main() -> None:
                     print(f"           {i:>3} {flag} {show(ctx[i]['text']):<16} "
                           f"{row[i]:.4f} {bar}")
 
-                # EVERYTHING it considered that we kept: the 40 candidates, with running total.
+                # EVERYTHING it considered that we kept, with running total.
                 print(f"\n           --- all {len(event['candidates'])} candidates sent ---")
                 running = 0.0
                 for rank, c in enumerate(event["candidates"], start=1):
                     running += c["prob"]
-                    print(f"           {rank:>3}. {show(c['text']):<16} {c['prob']:.6f}  "
+                    print(f"           {rank:>3}. {show(c['text']):<16} {c['prob']:.8g}  "
                           f"cumulative {running:.4f}")
-                print(f"           the other ~151,896 tokens share {1 - running:.4f}")
+                print(f"           all remaining vocabulary tokens share {1 - running:.4f}")
             print()
 
         elif event["type"] == "done":
